@@ -1,0 +1,58 @@
+kernel @collatz_steps(i32 %n.0, ptr.i32 %start.1, ptr.i32 %steps.2) {
+entry:
+  %3 = special i32 ctaid.x
+  %4 = special i32 ntid.x
+  %5 = mul i32 %3, %4
+  %6 = special i32 tid.x
+  %7 = add i32 %5, %6
+  %i.8 = copy i32 %7
+  %9 = ge i32 %i.8, %n.0
+  br %9, if.then.1, if.end.2
+if.then.1:
+  ret
+if.end.2:
+  %10 = load i32 global %start.1[%i.8]
+  %v.11 = copy i32 %10
+  %12 = lt i32 %v.11, 1
+  br %12, if.then.3, if.end.4
+if.then.3:
+  %13 = neg i32 %v.11
+  %14 = add i32 %13, 1
+  %v.11 = copy i32 %14
+  jmp if.end.4
+if.end.4:
+  %count.15 = copy i32 0
+  jmp while.cond.5
+while.cond.5:
+  br true, while.body.6, while.end.7
+while.body.6:
+  %16 = eq i32 %v.11, 1
+  br %16, if.then.8, if.end.9
+if.then.8:
+  jmp while.end.7
+if.end.9:
+  %17 = rem i32 %v.11, 2
+  %18 = eq i32 %17, 0
+  br %18, if.then.10, if.else.11
+if.then.10:
+  %19 = div i32 %v.11, 2
+  %v.11 = copy i32 %19
+  jmp if.end.12
+if.else.11:
+  %20 = mul i32 3, %v.11
+  %21 = add i32 %20, 1
+  %v.11 = copy i32 %21
+  jmp if.end.12
+if.end.12:
+  %22 = add i32 %count.15, 1
+  %count.15 = copy i32 %22
+  %23 = ge i32 %count.15, 1000
+  br %23, if.then.13, if.end.14
+if.then.13:
+  jmp while.end.7
+if.end.14:
+  jmp while.cond.5
+while.end.7:
+  store i32 global %steps.2[%i.8], %count.15
+  ret
+}

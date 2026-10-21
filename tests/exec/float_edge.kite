@@ -1,0 +1,22 @@
+// f32 semantics: single-precision rounding, 0.0 / 0.0 is NaN (not an error), NaN compares false,
+// and min / max return the non-NaN operand.
+// @kernel float_edge
+// @grid 1
+// @block 1
+// @arg y f32[4] zeros
+// @arg q i32[4] zeros
+// @check y q
+
+kernel float_edge(y: *f32, q: *i32) {
+    var z: f32 = 0.0;
+    var nan: f32 = z / z;
+    var big: f32 = 16777216.0;
+    y[0] = big + 1.0;
+    y[1] = max(nan, 1.0);
+    y[2] = min(2.0, nan);
+    y[3] = 0.1 * 3.0;
+    q[0] = (nan != nan) as i32;
+    q[1] = (nan < 1.0) as i32 + (nan >= 1.0) as i32;
+    q[2] = (nan == nan) as i32;
+    q[3] = -2.9 as i32;
+}

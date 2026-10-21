@@ -1,0 +1,19 @@
+kernel @vector_add(i32 %n.0, ptr.f32 %a.1, ptr.f32 %b.2, ptr.f32 %c.3) {
+entry:
+  %4 = special i32 ctaid.x
+  %5 = special i32 ntid.x
+  %6 = mul i32 %4, %5
+  %7 = special i32 tid.x
+  %8 = add i32 %6, %7
+  %i.9 = copy i32 %8
+  %10 = lt i32 %i.9, %n.0
+  br %10, if.then.1, if.end.2
+if.then.1:
+  %11 = load f32 global %a.1[%i.9]
+  %12 = load f32 global %b.2[%i.9]
+  %13 = add f32 %11, %12
+  store f32 global %c.3[%i.9], %13
+  jmp if.end.2
+if.end.2:
+  ret
+}

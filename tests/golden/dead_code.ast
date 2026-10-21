@@ -1,0 +1,28 @@
+Program
+  Kernel dead_code
+    Param out: *i32
+    Block
+      VarDecl i: i32 = thread_idx.x
+      VarDecl s: i32 = 0
+      For
+        Init
+          VarDecl k: i32 = 0
+        Cond (< k 10)
+        Step
+          Assign k = (+ k 1)
+        Block
+          If (== k i)
+            Block
+              Continue
+              Assign s = (+ s 1000)
+          If (> k 6)
+            Block
+              Break
+              Assign s = (+ s 2000)
+          Assign s = (+ s k)
+      If (== i 3)
+        Block
+          Assign out[i] = (neg 1)
+          Return
+          Assign out[i] = (neg 2)
+      Assign out[i] = s

@@ -1,0 +1,29 @@
+// Statements after return / break / continue are legal and never run (they lower to dead blocks).
+// `continue` in a for loop must run the step, or the loop below never ends for k == i.
+// @kernel dead_code
+// @grid 1
+// @block 6
+// @arg out i32[6] zeros
+// @check out
+
+kernel dead_code(out: *i32) {
+    var i: i32 = thread_idx.x;
+    var s: i32 = 0;
+    for (var k: i32 = 0; k < 10; k += 1) {
+        if (k == i) {
+            continue;
+            s += 1000;
+        }
+        if (k > 6) {
+            break;
+            s += 2000;
+        }
+        s += k;
+    }
+    if (i == 3) {
+        out[i] = -1;
+        return;
+        out[i] = -2;
+    }
+    out[i] = s;
+}

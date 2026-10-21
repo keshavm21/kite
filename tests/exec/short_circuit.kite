@@ -1,0 +1,23 @@
+// && and || must not evaluate the right-hand side when the left decides it: x[i] is out of
+// bounds for i >= n, so a missing short circuit is an interpreter error, not just a wrong answer.
+// @kernel short_circuit
+// @grid 1
+// @block 8
+// @arg n i32 5
+// @arg x i32[5] iota
+// @arg out i32[8] zeros
+// @check out
+
+kernel short_circuit(n: i32, x: *i32, out: *i32) {
+    var i: i32 = thread_idx.x;
+    var r: i32 = 0;
+    if (i < n && x[i] % 2 == 0) {
+        r += 1;
+    }
+    if (i >= n || x[i] > 2) {
+        r += 10;
+    }
+    var f: bool = i < n && !(x[i] == 1) || i == 7;
+    r += f as i32 * 100;
+    out[i] = r;
+}

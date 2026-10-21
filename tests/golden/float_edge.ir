@@ -1,0 +1,31 @@
+kernel @float_edge(ptr.f32 %y.0, ptr.i32 %q.1) {
+entry:
+  %z.2 = copy f32 0.0
+  %3 = div f32 %z.2, %z.2
+  %nan.4 = copy f32 %3
+  %big.5 = copy f32 16777216.0
+  %6 = add f32 %big.5, 1.0
+  store f32 global %y.0[0], %6
+  %7 = max f32 %nan.4, 1.0
+  store f32 global %y.0[1], %7
+  %8 = min f32 2.0, %nan.4
+  store f32 global %y.0[2], %8
+  %9 = mul f32 0.100000001, 3.0
+  store f32 global %y.0[3], %9
+  %10 = ne f32 %nan.4, %nan.4
+  %11 = btoi %10
+  store i32 global %q.1[0], %11
+  %12 = lt f32 %nan.4, 1.0
+  %13 = btoi %12
+  %14 = ge f32 %nan.4, 1.0
+  %15 = btoi %14
+  %16 = add i32 %13, %15
+  store i32 global %q.1[1], %16
+  %17 = eq f32 %nan.4, %nan.4
+  %18 = btoi %17
+  store i32 global %q.1[2], %18
+  %19 = neg f32 2.9000001
+  %20 = ftoi %19
+  store i32 global %q.1[3], %20
+  ret
+}

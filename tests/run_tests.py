@@ -8,10 +8,13 @@
 
 Categories implemented so far:
   golden  tests/golden/NAME.ast  vs  `kitec NAME.kite --emit=ast`
-          source is tests/golden/NAME.kite, else examples/NAME.kite
+          tests/golden/NAME.ir   vs  `kitec NAME.kite --emit=ir -O0 --verify-each`
+          the source is tests/golden/NAME.kite, else tests/exec/NAME.kite, else examples/NAME.kite
   errors  tests/errors/*.kite whose first line is `// ERROR: LINE:COL: message`
           kitec must exit 1 and print `...:LINE:COL: error: message` on stderr
-Later milestones add golden IR/PTX files and the exec (differential) category.
+  exec    every examples/*.kite and tests/exec/*.kite: `kitec run -O0` and `kitec run -O1`
+          (both with --verify-each) must succeed and print byte-for-byte identical output
+Later milestones add golden .O1.ir / .ptx files and the ptxas check.
 """
 import argparse
 import difflib
@@ -20,30 +23,43 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+SOURCE_DIRS = [ROOT / "tests/golden", ROOT / "tests/exec", ROOT / "examples"]
+
+# golden file extension -> kitec arguments that produce its contents
+GOLDEN_KINDS = {
+    "ast": ["--emit=ast"],
+    "ir": ["--emit=ir", "-O0", "--verify-each"],
+}
 
 
 def run(kitec, *args):
     return subprocess.run([str(kitec), *map(str, args)], capture_output=True, text=True)
 
 
+def find_source(name):
+    for d in SOURCE_DIRS:
+        if (d / f"{name}.kite").exists():
+            return d / f"{name}.kite"
+    return None
+
+
 def golden_cases(pattern):
-    for expected in sorted((ROOT / "tests/golden").glob("*.ast")):
-        name = expected.stem
-        src = ROOT / "tests/golden" / f"{name}.kite"
-        if not src.exists():
-            src = ROOT / "examples" / f"{name}.kite"
-        if pattern in f"golden/{name}":
-            yield f"golden/{name}", src, expected
+    for ext in GOLDEN_KINDS:
+        for expected in sorted((ROOT / "tests/golden").glob(f"*.{ext}")):
+            name = expected.stem
+            src = find_source(name)
+            if src and pattern in f"golden/{name}.{ext}":
+                yield f"golden/{name}.{ext}", ext, src, expected
 
 
 def sources_without_golden():
-    have = {p.stem for p in (ROOT / "tests/golden").glob("*.ast")}
-    srcs = list((ROOT / "examples").glob("*.kite")) + list((ROOT / "tests/golden").glob("*.kite"))
-    return [p for p in sorted(srcs) if p.stem not in have]
+    """Every compilable source: examples, golden inputs and exec tests (no error tests)."""
+    srcs = [p for d in SOURCE_DIRS for p in sorted(d.glob("*.kite"))]
+    return [(ext, p) for ext in GOLDEN_KINDS for p in srcs if not (ROOT / "tests/golden" / f"{p.stem}.{ext}").exists()]
 
 
-def check_golden(kitec, src, expected, update):
-    r = run(kitec, src, "--emit=ast")
+def check_golden(kitec, ext, src, expected, update):
+    r = run(kitec, src, *GOLDEN_KINDS[ext])
     if r.returncode != 0:
         return f"kitec exited {r.returncode}:\n{r.stderr}"
     if update:
@@ -72,6 +88,25 @@ def check_error(kitec, src):
     return None
 
 
+def exec_sources():
+    return sorted(p for d in (ROOT / "examples", ROOT / "tests/exec") for p in d.glob("*.kite"))
+
+
+def check_exec(kitec, src):
+    results = {}
+    for level in ("-O0", "-O1"):
+        r = run(kitec, "run", src, level, "--verify-each")
+        if r.returncode != 0:
+            return f"`kitec run {level}` exited {r.returncode}:\n{r.stderr}"
+        if not r.stdout.strip():
+            return f"`kitec run {level}` printed nothing (does the @spec have a @check line?)"
+        results[level] = r.stdout
+    if results["-O0"] != results["-O1"]:
+        diff = difflib.unified_diff(results["-O0"].splitlines(True), results["-O1"].splitlines(True), "-O0", "-O1")
+        return "".join(diff)
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-k", default="", help="run only tests whose name contains this")
@@ -83,26 +118,31 @@ def main():
         sys.exit(f"{kitec} not found; build first (cmake --build build)")
 
     if args.update:  # create a golden file for every source that lacks one
-        for src in sources_without_golden():
-            (ROOT / "tests/golden" / f"{src.stem}.ast").touch()
+        for ext, src in sources_without_golden():
+            if args.k in src.stem:
+                (ROOT / "tests/golden" / f"{src.stem}.{ext}").touch()
 
     failures, total = [], 0
-    for name, src, expected in golden_cases(args.k):
+
+    def report(name, err, suffix=""):
+        nonlocal total
         total += 1
-        err = check_golden(kitec, src, expected, args.update)
-        print(f"{'FAIL' if err else 'ok  '} {name}" + (" (updated)" if args.update else ""))
+        print(f"{'FAIL' if err else 'ok  '} {name}{suffix}")
         if err:
             failures.append((name, err))
+
+    for name, ext, src, expected in golden_cases(args.k):
+        report(name, check_golden(kitec, ext, src, expected, args.update), " (updated)" if args.update else "")
 
     for src in sorted((ROOT / "tests/errors").glob("*.kite")):
         name = f"errors/{src.stem}"
-        if args.k not in name:
-            continue
-        total += 1
-        err = check_error(kitec, src)
-        print(f"{'FAIL' if err else 'ok  '} {name}")
-        if err:
-            failures.append((name, err))
+        if args.k in name:
+            report(name, check_error(kitec, src))
+
+    for src in exec_sources():
+        name = f"exec/{src.stem}"
+        if args.k in name:
+            report(name, check_exec(kitec, src))
 
     for name, err in failures:
         print(f"\n--- {name} ---\n{err}")

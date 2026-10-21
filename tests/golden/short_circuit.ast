@@ -1,0 +1,17 @@
+Program
+  Kernel short_circuit
+    Param n: i32
+    Param x: *i32
+    Param out: *i32
+    Block
+      VarDecl i: i32 = thread_idx.x
+      VarDecl r: i32 = 0
+      If (&& (< i n) (== (% x[i] 2) 0))
+        Block
+          Assign r = (+ r 1)
+      If (|| (>= i n) (> x[i] 2))
+        Block
+          Assign r = (+ r 10)
+      VarDecl f: bool = (|| (&& (< i n) (not (== x[i] 1))) (== i 7))
+      Assign r = (+ r (* (as f i32) 100))
+      Assign out[i] = r

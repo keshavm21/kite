@@ -1,0 +1,53 @@
+kernel @block_sum(i32 %n.0, ptr.f32 %x.1, ptr.f32 %out.2) {
+  shared f32 @buf[256]
+entry:
+  %3 = special i32 tid.x
+  %t.4 = copy i32 %3
+  %5 = special i32 ctaid.x
+  %6 = special i32 ntid.x
+  %7 = mul i32 %5, %6
+  %8 = add i32 %7, %t.4
+  %i.9 = copy i32 %8
+  %v.10 = copy f32 0.0
+  %11 = lt i32 %i.9, %n.0
+  br %11, if.then.1, if.end.2
+if.then.1:
+  %12 = load f32 global %x.1[%i.9]
+  %v.10 = copy f32 %12
+  jmp if.end.2
+if.end.2:
+  store f32 shared @buf[%t.4], %v.10
+  barrier
+  %13 = special i32 ntid.x
+  %14 = div i32 %13, 2
+  %s.15 = copy i32 %14
+  jmp while.cond.3
+while.cond.3:
+  %16 = gt i32 %s.15, 0
+  br %16, while.body.4, while.end.5
+while.body.4:
+  %17 = lt i32 %t.4, %s.15
+  br %17, if.then.6, if.end.7
+if.then.6:
+  %18 = load f32 shared @buf[%t.4]
+  %19 = add i32 %t.4, %s.15
+  %20 = load f32 shared @buf[%19]
+  %21 = add f32 %18, %20
+  store f32 shared @buf[%t.4], %21
+  jmp if.end.7
+if.end.7:
+  barrier
+  %22 = div i32 %s.15, 2
+  %s.15 = copy i32 %22
+  jmp while.cond.3
+while.end.5:
+  %23 = eq i32 %t.4, 0
+  br %23, if.then.8, if.end.9
+if.then.8:
+  %24 = special i32 ctaid.x
+  %25 = load f32 shared @buf[0]
+  store f32 global %out.2[%24], %25
+  jmp if.end.9
+if.end.9:
+  ret
+}

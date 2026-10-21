@@ -1,0 +1,16 @@
+Program
+  Kernel float_edge
+    Param y: *f32
+    Param q: *i32
+    Block
+      VarDecl z: f32 = 0.0
+      VarDecl nan: f32 = (/ z z)
+      VarDecl big: f32 = 16777216.0
+      Assign y[0] = (+ big 1.0)
+      Assign y[1] = (max nan 1.0)
+      Assign y[2] = (min 2.0 nan)
+      Assign y[3] = (* 0.100000001 3.0)
+      Assign q[0] = (as (!= nan nan) i32)
+      Assign q[1] = (+ (as (< nan 1.0) i32) (as (>= nan 1.0) i32))
+      Assign q[2] = (as (== nan nan) i32)
+      Assign q[3] = (as (neg 2.9000001) i32)

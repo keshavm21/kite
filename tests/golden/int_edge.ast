@@ -1,0 +1,13 @@
+Program
+  Kernel int_edge
+    Param out: *i32
+    Block
+      VarDecl big: i32 = 2147483647
+      Assign out[0] = (+ big 1)
+      Assign out[1] = -2147483648
+      Assign out[2] = (* big big)
+      Assign out[3] = (/ (- (- 0 big) 1) 3)
+      Assign out[4] = (% (neg 7) 3)
+      Assign out[5] = (neg -2147483648)
+      Assign out[6] = (abs -2147483648)
+      Assign out[7] = (- (min -2147483648 big) 1)

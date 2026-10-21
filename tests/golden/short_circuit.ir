@@ -1,0 +1,52 @@
+kernel @short_circuit(i32 %n.0, ptr.i32 %x.1, ptr.i32 %out.2) {
+entry:
+  %3 = special i32 tid.x
+  %i.4 = copy i32 %3
+  %r.5 = copy i32 0
+  %6 = lt i32 %i.4, %n.0
+  br %6, and.rhs.3, if.end.2
+and.rhs.3:
+  %7 = load i32 global %x.1[%i.4]
+  %8 = rem i32 %7, 2
+  %9 = eq i32 %8, 0
+  br %9, if.then.1, if.end.2
+if.then.1:
+  %10 = add i32 %r.5, 1
+  %r.5 = copy i32 %10
+  jmp if.end.2
+if.end.2:
+  %11 = ge i32 %i.4, %n.0
+  br %11, if.then.4, or.rhs.6
+or.rhs.6:
+  %12 = load i32 global %x.1[%i.4]
+  %13 = gt i32 %12, 2
+  br %13, if.then.4, if.end.5
+if.then.4:
+  %14 = add i32 %r.5, 10
+  %r.5 = copy i32 %14
+  jmp if.end.5
+if.end.5:
+  %16 = lt i32 %i.4, %n.0
+  br %16, and.rhs.11, or.rhs.10
+and.rhs.11:
+  %17 = load i32 global %x.1[%i.4]
+  %18 = eq i32 %17, 1
+  br %18, or.rhs.10, sc.true.7
+or.rhs.10:
+  %19 = eq i32 %i.4, 7
+  br %19, sc.true.7, sc.false.8
+sc.true.7:
+  %15 = copy bool true
+  jmp sc.end.9
+sc.false.8:
+  %15 = copy bool false
+  jmp sc.end.9
+sc.end.9:
+  %f.20 = copy bool %15
+  %21 = btoi %f.20
+  %22 = mul i32 %21, 100
+  %23 = add i32 %r.5, %22
+  %r.5 = copy i32 %23
+  store i32 global %out.2[%i.4], %r.5
+  ret
+}

@@ -1,0 +1,91 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.shared .align 4 .f32 block_sum_buf[256];
+
+.visible .entry block_sum(
+    .param .u32 block_sum_param_0,
+    .param .u64 block_sum_param_1,
+    .param .u64 block_sum_param_2
+)
+{
+    .reg .pred  %p<24>;
+    .reg .b32   %r<43>;
+    .reg .f32   %f<29>;
+    .reg .b64   %rd<45>;
+
+    ld.param.u32        %r0, [block_sum_param_0];
+    ld.param.u64        %rd1, [block_sum_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [block_sum_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+    mov.u32             %r32, block_sum_buf;
+
+$L_entry:
+    mov.u32             %r3, %tid.x;
+    mov.u32             %r5, %ctaid.x;
+    mov.u32             %r6, %ntid.x;
+    mul.lo.s32          %r7, %r5, %r6;
+    add.s32             %r8, %r7, %r3;
+    setp.lt.s32         %p11, %r8, %r0;
+    @%p11 bra           $L_if_then_1;
+
+$L_split_10:
+    mov.f32             %f28, 0f00000000;
+    bra.uni             $L_if_end_2;
+
+$L_if_then_1:
+    mul.wide.s32        %rd33, %r8, 4;
+    add.s64             %rd34, %rd1, %rd33;
+    ld.global.f32       %f12, [%rd34];
+    mov.f32             %f28, %f12;
+
+$L_if_end_2:
+    shl.b32             %r35, %r3, 2;
+    add.s32             %r36, %r32, %r35;
+    st.shared.f32       [%r36], %f28;
+    bar.sync            0;
+    div.s32             %r14, %r6, 2;
+    mov.u32             %r30, %r14;
+
+$L_while_cond_3:
+    setp.gt.s32         %p16, %r30, 0;
+    @!%p16 bra          $L_while_end_5;
+
+$L_while_body_4:
+    setp.lt.s32         %p17, %r3, %r30;
+    @!%p17 bra          $L_if_end_7;
+
+$L_if_then_6:
+    shl.b32             %r37, %r3, 2;
+    add.s32             %r38, %r32, %r37;
+    ld.shared.f32       %f18, [%r38];
+    add.s32             %r19, %r3, %r30;
+    shl.b32             %r39, %r19, 2;
+    add.s32             %r40, %r32, %r39;
+    ld.shared.f32       %f20, [%r40];
+    add.rn.f32          %f21, %f18, %f20;
+    shl.b32             %r41, %r3, 2;
+    add.s32             %r42, %r32, %r41;
+    st.shared.f32       [%r42], %f21;
+
+$L_if_end_7:
+    bar.sync            0;
+    div.s32             %r22, %r30, 2;
+    mov.u32             %r30, %r22;
+    bra.uni             $L_while_cond_3;
+
+$L_while_end_5:
+    setp.eq.s32         %p23, %r3, 0;
+    @!%p23 bra          $L_if_end_9;
+
+$L_if_then_8:
+    ld.shared.f32       %f25, [%r32];
+    mul.wide.s32        %rd43, %r5, 4;
+    add.s64             %rd44, %rd2, %rd43;
+    st.global.f32       [%rd44], %f25;
+
+$L_if_end_9:
+    ret;
+}

@@ -1,0 +1,93 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry short_circuit(
+    .param .u32 short_circuit_param_0,
+    .param .u64 short_circuit_param_1,
+    .param .u64 short_circuit_param_2
+)
+{
+    .reg .pred  %p<32>;
+    .reg .b32   %r<29>;
+    .reg .b64   %rd<41>;
+
+    ld.param.u32        %r0, [short_circuit_param_0];
+    ld.param.u64        %rd1, [short_circuit_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [short_circuit_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+
+$L_entry:
+    mov.u32             %r3, %tid.x;
+    setp.lt.s32         %p6, %r3, %r0;
+    @%p6 bra            $L_and_rhs_3;
+
+$L_split_12:
+    mov.u32             %r26, 0;
+    bra.uni             $L_if_end_2;
+
+$L_and_rhs_3:
+    mul.wide.s32        %rd33, %r3, 4;
+    add.s64             %rd34, %rd1, %rd33;
+    ld.global.u32       %r7, [%rd34];
+    rem.s32             %r8, %r7, 2;
+    setp.eq.s32         %p9, %r8, 0;
+    @%p9 bra            $L_if_then_1;
+
+$L_split_13:
+    mov.u32             %r26, 0;
+    bra.uni             $L_if_end_2;
+
+$L_if_then_1:
+    mov.u32             %r26, 1;
+
+$L_if_end_2:
+    setp.ge.s32         %p11, %r3, %r0;
+    @%p11 bra           $L_if_then_4;
+
+$L_or_rhs_6:
+    mul.wide.s32        %rd35, %r3, 4;
+    add.s64             %rd36, %rd1, %rd35;
+    ld.global.u32       %r12, [%rd36];
+    setp.gt.s32         %p13, %r12, 2;
+    @%p13 bra           $L_if_then_4;
+
+$L_split_14:
+    mov.u32             %r28, %r26;
+    bra.uni             $L_if_end_5;
+
+$L_if_then_4:
+    add.s32             %r14, %r26, 10;
+    mov.u32             %r28, %r14;
+
+$L_if_end_5:
+    @!%p6 bra           $L_or_rhs_10;
+
+$L_and_rhs_11:
+    mul.wide.s32        %rd37, %r3, 4;
+    add.s64             %rd38, %rd1, %rd37;
+    ld.global.u32       %r17, [%rd38];
+    setp.eq.s32         %p18, %r17, 1;
+    @!%p18 bra          $L_sc_true_7;
+
+$L_or_rhs_10:
+    setp.eq.s32         %p19, %r3, 7;
+    @!%p19 bra          $L_sc_false_8;
+
+$L_sc_true_7:
+    mov.pred            %p31, 1;
+    bra.uni             $L_sc_end_9;
+
+$L_sc_false_8:
+    mov.pred            %p31, 0;
+
+$L_sc_end_9:
+    selp.s32            %r21, 1, 0, %p31;
+    mul.lo.s32          %r22, %r21, 100;
+    add.s32             %r23, %r28, %r22;
+    mul.wide.s32        %rd39, %r3, 4;
+    add.s64             %rd40, %rd2, %rd39;
+    st.global.u32       [%rd40], %r23;
+    ret;
+}

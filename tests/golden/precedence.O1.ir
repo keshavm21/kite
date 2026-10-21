@@ -1,0 +1,25 @@
+kernel @precedence(i32 %n.0, ptr.f32 %p.1, ptr.i32 %q.2) {
+entry:
+  %10 = lt i32 %n.0, 1
+  br %10, sc.true.1, or.rhs.4
+or.rhs.4:
+  %11 = gt i32 %n.0, 5
+  br %11, and.rhs.5, sc.false.2
+and.rhs.5:
+  %12 = ne i32 %n.0, 3
+  %13 = eq bool %12, true
+  br %13, sc.true.1, sc.false.2
+sc.true.1:
+  jmp sc.end.3
+sc.false.2:
+  jmp sc.end.3
+sc.end.3:
+  %28 = mul i32 %n.0, 2
+  %30 = load i32 global %q.2[%28]
+  %31 = add i32 %30, 5
+  store i32 global %q.2[%28], %31
+  %32 = load f32 global %p.1[0]
+  %33 = div f32 %32, 2.5
+  store f32 global %p.1[0], %33
+  ret
+}

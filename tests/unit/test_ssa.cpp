@@ -6,7 +6,7 @@
 #include "interp/interp.h"
 #include "ir/builder.h"
 #include "test_util.h"
-#include "transform/passes.h"
+#include "transform/pass_manager.h"
 #include "transform/ssa.h"
 
 using namespace kite;
@@ -476,13 +476,18 @@ TEST_CASE("pass driver: forms are tracked and wrong orders are rejected") {
     Module m = compile("kernel k(p: *i32) { p[0] = 1; }");
     Form form = Form::Lowered;
     std::string err;
-    CHECK_FALSE(transform::runPasses(m, {"out-of-ssa"}, true, form, err));
+    auto run = [&](std::vector<std::string> names) {
+        transform::PassManager pm({true, false, false});
+        return pm.run(m, transform::flatPipeline(names), form, err);
+    };
+    CHECK_FALSE(run({"out-of-ssa"}));
     CHECK(err.find("needs SSA IR but the IR is lowered") != std::string::npos);
-    CHECK_FALSE(transform::runPasses(m, {"nope"}, true, form, err));
+    CHECK_FALSE(run({"nope"}));
     CHECK(err.find("unknown pass 'nope'") != std::string::npos);
-    CHECK(transform::runPasses(m, {"ssa"}, true, form, err));
+    CHECK_FALSE(run({"constfold"}));  // the optimizer passes need SSA
+    CHECK(run({"ssa"}));
     CHECK(form == Form::SSA);
-    CHECK_FALSE(transform::runPasses(m, {"ssa"}, true, form, err));
-    CHECK(transform::runPasses(m, {"out-of-ssa"}, true, form, err));
+    CHECK_FALSE(run({"ssa"}));
+    CHECK(run({"out-of-ssa"}));
     CHECK(form == Form::PostSSA);
 }

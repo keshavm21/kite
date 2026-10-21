@@ -1,0 +1,82 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry matmul_naive(
+    .param .u32 matmul_naive_param_0,
+    .param .u32 matmul_naive_param_1,
+    .param .u32 matmul_naive_param_2,
+    .param .u64 matmul_naive_param_3,
+    .param .u64 matmul_naive_param_4,
+    .param .u64 matmul_naive_param_5
+)
+{
+    .reg .pred  %p<23>;
+    .reg .b32   %r<38>;
+    .reg .f32   %f<37>;
+    .reg .b64   %rd<48>;
+
+    ld.param.u32        %r0, [matmul_naive_param_0];
+    ld.param.u32        %r1, [matmul_naive_param_1];
+    ld.param.u32        %r2, [matmul_naive_param_2];
+    ld.param.u64        %rd3, [matmul_naive_param_3];
+    cvta.to.global.u64  %rd3, %rd3;
+    ld.param.u64        %rd4, [matmul_naive_param_4];
+    cvta.to.global.u64  %rd4, %rd4;
+    ld.param.u64        %rd5, [matmul_naive_param_5];
+    cvta.to.global.u64  %rd5, %rd5;
+
+$L_entry:
+    mov.u32             %r6, %ctaid.y;
+    mov.u32             %r7, %ntid.y;
+    mul.lo.s32          %r8, %r6, %r7;
+    mov.u32             %r9, %tid.y;
+    add.s32             %r10, %r8, %r9;
+    mov.u32             %r12, %ctaid.x;
+    mov.u32             %r13, %ntid.x;
+    mul.lo.s32          %r14, %r12, %r13;
+    mov.u32             %r15, %tid.x;
+    add.s32             %r16, %r14, %r15;
+    setp.lt.s32         %p18, %r10, %r0;
+    @!%p18 bra          $L_if_end_2;
+
+$L_and_rhs_3:
+    setp.lt.s32         %p19, %r16, %r1;
+    @!%p19 bra          $L_if_end_2;
+
+$L_if_then_1:
+    mov.f32             %f36, 0f00000000;
+    mov.u32             %r37, 0;
+
+$L_for_cond_4:
+    setp.lt.s32         %p22, %r37, %r2;
+    @!%p22 bra          $L_for_end_7;
+
+$L_for_body_5:
+    mul.lo.s32          %r23, %r10, %r2;
+    add.s32             %r24, %r23, %r37;
+    mul.wide.s32        %rd42, %r24, 4;
+    add.s64             %rd43, %rd3, %rd42;
+    ld.global.f32       %f25, [%rd43];
+    mul.lo.s32          %r26, %r37, %r1;
+    add.s32             %r27, %r26, %r16;
+    mul.wide.s32        %rd44, %r27, 4;
+    add.s64             %rd45, %rd4, %rd44;
+    ld.global.f32       %f28, [%rd45];
+    mul.rn.f32          %f29, %f25, %f28;
+    add.rn.f32          %f30, %f36, %f29;
+    add.s32             %r31, %r37, 1;
+    mov.f32             %f36, %f30;
+    mov.u32             %r37, %r31;
+    bra.uni             $L_for_cond_4;
+
+$L_for_end_7:
+    mul.lo.s32          %r32, %r10, %r1;
+    add.s32             %r33, %r32, %r16;
+    mul.wide.s32        %rd46, %r33, 4;
+    add.s64             %rd47, %rd5, %rd46;
+    st.global.f32       [%rd47], %f36;
+
+$L_if_end_2:
+    ret;
+}

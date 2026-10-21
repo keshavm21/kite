@@ -10,7 +10,9 @@ Categories implemented so far:
   golden  tests/golden/NAME.ast  vs  `kitec NAME.kite --emit=ast`
           tests/golden/NAME.ir   vs  `kitec NAME.kite --emit=ir -O0 --verify-each`
           tests/golden/NAME.ssa.ir vs `kitec NAME.kite --emit=ir --passes=ssa --verify-each`
+          tests/golden/NAME.O1.ir vs `kitec NAME.kite --emit=ir -O1 --verify-each`
           tests/golden/NAME.ptx  vs  `kitec NAME.kite --emit=ptx -O0`
+          tests/golden/NAME.O1.ptx vs `kitec NAME.kite --emit=ptx -O1 --verify-each`
           the source is tests/golden/NAME.kite, else tests/exec/NAME.kite, else examples/NAME.kite
   errors  tests/errors/*.kite whose first line is `// ERROR: LINE:COL: message`
           kitec must exit 1 and print `...:LINE:COL: error: message` on stderr
@@ -19,7 +21,7 @@ Categories implemented so far:
           byte-for-byte identical output
   ptx     every source, at -O0 and -O1: `kitec --emit=ptx` must assemble with `ptxas -arch=sm_75` when ptxas is on PATH;
           otherwise tests/ptx_lint.py does a structural check (undeclared registers, bad labels, ...)
-Later milestones add golden .O1.ir / .O1.ptx files.
+
 """
 import argparse
 import difflib
@@ -39,7 +41,9 @@ GOLDEN_KINDS = {
     "ast": ["--emit=ast"],
     "ir": ["--emit=ir", "-O0", "--verify-each"],
     "ssa.ir": ["--emit=ir", "--passes=ssa", "--verify-each"],
+    "O1.ir": ["--emit=ir", "-O1", "--verify-each"],
     "ptx": ["--emit=ptx", "-O0"],
+    "O1.ptx": ["--emit=ptx", "-O1", "--verify-each"],
 }
 
 
@@ -58,8 +62,8 @@ def golden_cases(pattern):
     for ext in GOLDEN_KINDS:
         for expected in sorted((ROOT / "tests/golden").glob(f"*.{ext}")):
             name = expected.name[: -(len(ext) + 1)]
-            if ext == "ir" and name.endswith(".ssa"):
-                continue  # NAME.ssa.ir belongs to the "ssa.ir" kind
+            if "." in name:
+                continue  # NAME.ssa.ir, NAME.O1.ir ... belong to their own kinds
             src = find_source(name)
             if src and pattern in f"golden/{name}.{ext}":
                 yield f"golden/{name}.{ext}", ext, src, expected

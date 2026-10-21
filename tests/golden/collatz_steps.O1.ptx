@@ -1,0 +1,95 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry collatz_steps(
+    .param .u32 collatz_steps_param_0,
+    .param .u64 collatz_steps_param_1,
+    .param .u64 collatz_steps_param_2
+)
+{
+    .reg .pred  %p<24>;
+    .reg .b32   %r<36>;
+    .reg .b64   %rd<40>;
+
+    ld.param.u32        %r0, [collatz_steps_param_0];
+    ld.param.u64        %rd1, [collatz_steps_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [collatz_steps_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+
+$L_entry:
+    mov.u32             %r3, %ctaid.x;
+    mov.u32             %r4, %ntid.x;
+    mul.lo.s32          %r5, %r3, %r4;
+    mov.u32             %r6, %tid.x;
+    add.s32             %r7, %r5, %r6;
+    setp.ge.s32         %p9, %r7, %r0;
+    @!%p9 bra           $L_if_end_2;
+
+$L_if_then_1:
+    ret;
+
+$L_if_end_2:
+    mul.wide.s32        %rd36, %r7, 4;
+    add.s64             %rd37, %rd1, %rd36;
+    ld.global.u32       %r10, [%rd37];
+    setp.lt.s32         %p12, %r10, 1;
+    @%p12 bra           $L_if_then_3;
+
+$L_split_15:
+    mov.u32             %r26, %r10;
+    bra.uni             $L_if_end_4;
+
+$L_if_then_3:
+    neg.s32             %r13, %r10;
+    add.s32             %r14, %r13, 1;
+    mov.u32             %r26, %r14;
+
+$L_if_end_4:
+    mov.u32             %r28, %r26;
+    mov.u32             %r29, 0;
+
+$L_while_cond_5:
+    setp.eq.s32         %p16, %r28, 1;
+    @!%p16 bra          $L_if_end_9;
+
+$L_if_then_8:
+    mov.u32             %r35, %r29;
+    bra.uni             $L_while_end_7;
+
+$L_if_end_9:
+    rem.s32             %r17, %r28, 2;
+    setp.eq.s32         %p18, %r17, 0;
+    @!%p18 bra          $L_if_else_11;
+
+$L_if_then_10:
+    div.s32             %r19, %r28, 2;
+    mov.u32             %r32, %r19;
+    bra.uni             $L_if_end_12;
+
+$L_if_else_11:
+    mul.lo.s32          %r20, 3, %r28;
+    add.s32             %r21, %r20, 1;
+    mov.u32             %r32, %r21;
+
+$L_if_end_12:
+    add.s32             %r22, %r29, 1;
+    setp.ge.s32         %p23, %r22, 1000;
+    @!%p23 bra          $L_if_end_14;
+
+$L_if_then_13:
+    mov.u32             %r35, %r22;
+    bra.uni             $L_while_end_7;
+
+$L_if_end_14:
+    mov.u32             %r28, %r32;
+    mov.u32             %r29, %r22;
+    bra.uni             $L_while_cond_5;
+
+$L_while_end_7:
+    mul.wide.s32        %rd38, %r7, 4;
+    add.s64             %rd39, %rd2, %rd38;
+    st.global.u32       [%rd39], %r35;
+    ret;
+}

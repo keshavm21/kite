@@ -1,0 +1,17 @@
+kernel @relu(i32 %n.0, ptr.f32 %x.1, ptr.f32 %y.2) {
+entry:
+  %3 = special i32 ctaid.x
+  %4 = special i32 ntid.x
+  %5 = mul i32 %3, %4
+  %6 = special i32 tid.x
+  %7 = add i32 %5, %6
+  %9 = lt i32 %7, %n.0
+  br %9, if.then.1, if.end.2
+if.then.1:
+  %10 = load f32 global %x.1[%7]
+  %11 = max f32 %10, 0.0
+  store f32 global %y.2[%7], %11
+  jmp if.end.2
+if.end.2:
+  ret
+}

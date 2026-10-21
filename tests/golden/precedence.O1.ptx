@@ -1,0 +1,55 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry precedence(
+    .param .u32 precedence_param_0,
+    .param .u64 precedence_param_1,
+    .param .u64 precedence_param_2
+)
+{
+    .reg .pred  %p<43>;
+    .reg .b32   %r<32>;
+    .reg .f32   %f<34>;
+    .reg .b64   %rd<47>;
+
+    ld.param.u32        %r0, [precedence_param_0];
+    ld.param.u64        %rd1, [precedence_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [precedence_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+
+$L_entry:
+    setp.lt.s32         %p10, %r0, 1;
+    @%p10 bra           $L_sc_true_1;
+
+$L_or_rhs_4:
+    setp.gt.s32         %p11, %r0, 5;
+    @!%p11 bra          $L_sc_false_2;
+
+$L_and_rhs_5:
+    setp.ne.s32         %p12, %r0, 3;
+    mov.pred            %p41, 1;
+    xor.pred            %p42, %p12, %p41;
+    not.pred            %p13, %p42;
+    @!%p13 bra          $L_sc_false_2;
+
+$L_sc_true_1:
+    bra.uni             $L_sc_end_3;
+
+$L_sc_false_2:
+
+$L_sc_end_3:
+    mul.lo.s32          %r28, %r0, 2;
+    mul.wide.s32        %rd43, %r28, 4;
+    add.s64             %rd44, %rd2, %rd43;
+    ld.global.u32       %r30, [%rd44];
+    add.s32             %r31, %r30, 5;
+    mul.wide.s32        %rd45, %r28, 4;
+    add.s64             %rd46, %rd2, %rd45;
+    st.global.u32       [%rd46], %r31;
+    ld.global.f32       %f32, [%rd1];
+    div.rn.f32          %f33, %f32, 0f40200000;
+    st.global.f32       [%rd1], %f33;
+    ret;
+}

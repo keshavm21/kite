@@ -1,0 +1,7 @@
+kernel @int_min(ptr.i32 %out.0) {
+entry:
+  store i32 global %out.0[0], -2147483648
+  store i32 global %out.0[1], -2147483648
+  store i32 global %out.0[2], 5
+  ret
+}

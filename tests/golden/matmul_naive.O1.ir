@@ -1,0 +1,45 @@
+kernel @matmul_naive(i32 %m.0, i32 %n.1, i32 %k.2, ptr.f32 %a.3, ptr.f32 %b.4, ptr.f32 %c.5) {
+entry:
+  %6 = special i32 ctaid.y
+  %7 = special i32 ntid.y
+  %8 = mul i32 %6, %7
+  %9 = special i32 tid.y
+  %10 = add i32 %8, %9
+  %12 = special i32 ctaid.x
+  %13 = special i32 ntid.x
+  %14 = mul i32 %12, %13
+  %15 = special i32 tid.x
+  %16 = add i32 %14, %15
+  %18 = lt i32 %10, %m.0
+  br %18, and.rhs.3, if.end.2
+and.rhs.3:
+  %19 = lt i32 %16, %n.1
+  br %19, if.then.1, if.end.2
+if.then.1:
+  %acc.36 = copy f32 0.0
+  %i.37 = copy i32 0
+  jmp for.cond.4
+for.cond.4:
+  %22 = lt i32 %i.37, %k.2
+  br %22, for.body.5, for.end.7
+for.body.5:
+  %23 = mul i32 %10, %k.2
+  %24 = add i32 %23, %i.37
+  %25 = load f32 global %a.3[%24]
+  %26 = mul i32 %i.37, %n.1
+  %27 = add i32 %26, %16
+  %28 = load f32 global %b.4[%27]
+  %29 = mul f32 %25, %28
+  %30 = add f32 %acc.36, %29
+  %31 = add i32 %i.37, 1
+  %acc.36 = copy f32 %30
+  %i.37 = copy i32 %31
+  jmp for.cond.4
+for.end.7:
+  %32 = mul i32 %10, %n.1
+  %33 = add i32 %32, %16
+  store f32 global %c.5[%33], %acc.36
+  jmp if.end.2
+if.end.2:
+  ret
+}

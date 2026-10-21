@@ -17,14 +17,14 @@
 #include "ir/printer.h"
 #include "ir/verifier.h"
 #include "support/diagnostics.h"
-#include "transform/passes.h"
+#include "transform/pass_manager.h"
 #include "support/source.h"
 
 namespace {
 
 void usage() {
     std::cerr << "usage: kitec FILE.kite [-o OUT] [-O0|-O1] [--emit=tokens|ast|ir|ptx] [--target=sm_75]\n"
-                 "             [--passes=a,b,c] [--verify-each]\n"
+                 "             [--passes=a,b,c] [--verify-each] [--print-after-all] [--stats]\n"
                  "       kitec run FILE.kite [-O0|-O1] [--verify-each]\n";
 }
 
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     std::string inPath, outPath, emit, target = "sm_75";
     bool runMode = false;
     int optLevel = 0;
-    bool verifyEach = false;
+    kite::transform::Options passOpts;
     bool havePasses = false;
     std::vector<std::string> passes;
     for (int i = 1; i < argc; ++i) {
@@ -90,7 +90,9 @@ int main(int argc, char** argv) {
         else if (a == "-o" && i + 1 < argc) outPath = argv[++i];
         else if (a == "-O0") optLevel = 0;
         else if (a == "-O1") optLevel = 1;
-        else if (a == "--verify-each") verifyEach = true;
+        else if (a == "--verify-each") passOpts.verifyEach = true;
+        else if (a == "--print-after-all") passOpts.printAfterAll = true;
+        else if (a == "--stats") passOpts.collectStats = true;
         else if (a.rfind("--passes=", 0) == 0) {
             havePasses = true;
             std::stringstream names(a.substr(9));
@@ -151,13 +153,18 @@ int main(int argc, char** argv) {
     kite::ir::Module module = kite::ir::lowerProgram(*program);
     if (!verifyModule(module, kite::ir::Form::Lowered)) return 3;  // a compiler bug, not a user error
 
-    // -O1 runs the default pipeline (grows in Milestone 6); --passes= overrides it, at either level.
+    // -O1 runs the default pipeline; --passes= overrides it, at either level.
     kite::ir::Form form = kite::ir::Form::Lowered;
     std::string err;
-    const std::vector<std::string>& pipeline = havePasses ? passes : optLevel >= 1 ? kite::transform::o1Pipeline() : passes;
-    if (!kite::transform::runPasses(module, pipeline, verifyEach, form, err)) {
-        std::cerr << (err.rfind("after", 0) == 0 ? "verifier: " : "kitec: ") << err << (err.back() == '\n' ? "" : "\n");
-        return err.rfind("after", 0) == 0 ? 3 : 2;
+    std::vector<kite::transform::Step> pipeline =
+        havePasses ? kite::transform::flatPipeline(passes) : optLevel >= 1 ? kite::transform::o1Pipeline() : std::vector<kite::transform::Step>{};
+    kite::transform::PassManager pm(passOpts, &std::cerr);
+    bool passesOk = pm.run(module, pipeline, form, err);
+    if (passOpts.collectStats) pm.printStats(std::cerr);
+    if (!passesOk) {
+        bool verifierFailure = err.rfind("verifier:", 0) == 0;
+        std::cerr << (verifierFailure ? "" : "kitec: ") << err << (err.back() == '\n' ? "" : "\n");
+        return verifierFailure ? 3 : 2;
     }
 
     if (runMode) return runSpec(src, module, out);

@@ -1,0 +1,12 @@
+kernel @int_edge(ptr.i32 %out.0) {
+entry:
+  store i32 global %out.0[0], -2147483648
+  store i32 global %out.0[1], -2147483648
+  store i32 global %out.0[2], 1
+  store i32 global %out.0[3], -715827882
+  store i32 global %out.0[4], -1
+  store i32 global %out.0[5], -2147483648
+  store i32 global %out.0[6], -2147483648
+  store i32 global %out.0[7], 2147483647
+  ret
+}

@@ -1,0 +1,19 @@
+kernel @saxpy(i32 %n.0, f32 %a.1, ptr.f32 %x.2, ptr.f32 %y.3) {
+entry:
+  %4 = special i32 ctaid.x
+  %5 = special i32 ntid.x
+  %6 = mul i32 %4, %5
+  %7 = special i32 tid.x
+  %8 = add i32 %6, %7
+  %10 = lt i32 %8, %n.0
+  br %10, if.then.1, if.end.2
+if.then.1:
+  %11 = load f32 global %x.2[%8]
+  %12 = mul f32 %a.1, %11
+  %13 = load f32 global %y.3[%8]
+  %14 = add f32 %12, %13
+  store f32 global %y.3[%8], %14
+  jmp if.end.2
+if.end.2:
+  ret
+}

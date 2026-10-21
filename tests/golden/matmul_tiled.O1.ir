@@ -1,0 +1,102 @@
+kernel @matmul_tiled(i32 %m.0, i32 %n.1, i32 %k.2, ptr.f32 %a.3, ptr.f32 %b.4, ptr.f32 %c.5) {
+  shared f32 @ta[256]
+  shared f32 @tb[256]
+entry:
+  %6 = special i32 tid.x
+  %8 = special i32 tid.y
+  %10 = special i32 ctaid.y
+  %11 = mul i32 %10, 16
+  %12 = add i32 %11, %8
+  %14 = special i32 ctaid.x
+  %15 = mul i32 %14, 16
+  %16 = add i32 %15, %6
+  %acc.65 = copy f32 0.0
+  %t.66 = copy i32 0
+  jmp for.cond.1
+for.cond.1:
+  %20 = add i32 %k.2, 15
+  %21 = div i32 %20, 16
+  %22 = lt i32 %t.66, %21
+  br %22, for.body.2, for.end.4
+for.body.2:
+  %23 = mul i32 %t.66, 16
+  %24 = add i32 %23, %6
+  %27 = add i32 %23, %8
+  %29 = lt i32 %12, %m.0
+  br %29, and.rhs.8, if.else.6
+and.rhs.8:
+  %30 = lt i32 %24, %k.2
+  br %30, if.then.5, if.else.6
+if.then.5:
+  %31 = mul i32 %8, 16
+  %32 = add i32 %31, %6
+  %33 = mul i32 %12, %k.2
+  %34 = add i32 %33, %24
+  %35 = load f32 global %a.3[%34]
+  store f32 shared @ta[%32], %35
+  jmp if.end.7
+if.else.6:
+  %36 = mul i32 %8, 16
+  %37 = add i32 %36, %6
+  store f32 shared @ta[%37], 0.0
+  jmp if.end.7
+if.end.7:
+  %38 = lt i32 %27, %k.2
+  br %38, and.rhs.12, if.else.10
+and.rhs.12:
+  %39 = lt i32 %16, %n.1
+  br %39, if.then.9, if.else.10
+if.then.9:
+  %40 = mul i32 %8, 16
+  %41 = add i32 %40, %6
+  %42 = mul i32 %27, %n.1
+  %43 = add i32 %42, %16
+  %44 = load f32 global %b.4[%43]
+  store f32 shared @tb[%41], %44
+  jmp if.end.11
+if.else.10:
+  %45 = mul i32 %8, 16
+  %46 = add i32 %45, %6
+  store f32 shared @tb[%46], 0.0
+  jmp if.end.11
+if.end.11:
+  barrier
+  %acc.69 = copy f32 %acc.65
+  %i.70 = copy i32 0
+  jmp for.cond.13
+for.cond.13:
+  %48 = lt i32 %i.70, 16
+  br %48, for.body.14, for.end.16
+for.body.14:
+  %49 = mul i32 %8, 16
+  %50 = add i32 %49, %i.70
+  %51 = load f32 shared @ta[%50]
+  %52 = mul i32 %i.70, 16
+  %53 = add i32 %52, %6
+  %54 = load f32 shared @tb[%53]
+  %55 = mul f32 %51, %54
+  %56 = add f32 %acc.69, %55
+  %57 = add i32 %i.70, 1
+  %acc.69 = copy f32 %56
+  %i.70 = copy i32 %57
+  jmp for.cond.13
+for.end.16:
+  barrier
+  %58 = add i32 %t.66, 1
+  %acc.65 = copy f32 %acc.69
+  %t.66 = copy i32 %58
+  jmp for.cond.1
+for.end.4:
+  %59 = lt i32 %12, %m.0
+  br %59, and.rhs.19, if.end.18
+and.rhs.19:
+  %60 = lt i32 %16, %n.1
+  br %60, if.then.17, if.end.18
+if.then.17:
+  %61 = mul i32 %12, %n.1
+  %62 = add i32 %61, %16
+  store f32 global %c.5[%62], %acc.65
+  jmp if.end.18
+if.end.18:
+  ret
+}

@@ -1,0 +1,46 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry float_edge(
+    .param .u64 float_edge_param_0,
+    .param .u64 float_edge_param_1
+)
+{
+    .reg .pred  %p<18>;
+    .reg .b32   %r<25>;
+    .reg .f32   %f<24>;
+    .reg .b64   %rd<2>;
+
+    ld.param.u64        %rd0, [float_edge_param_0];
+    cvta.to.global.u64  %rd0, %rd0;
+    ld.param.u64        %rd1, [float_edge_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+
+$L_entry:
+    mov.f32             %f21, 0f00000000;
+    div.rn.f32          %f3, %f21, 0f00000000;
+    mov.f32             %f22, 0f4B800000;
+    st.global.f32       [%rd0], %f22;
+    max.f32             %f7, %f3, 0f3F800000;
+    st.global.f32       [%rd0+4], %f7;
+    min.f32             %f8, 0f40000000, %f3;
+    st.global.f32       [%rd0+8], %f8;
+    mov.f32             %f23, 0f3E99999A;
+    st.global.f32       [%rd0+12], %f23;
+    setp.neu.f32        %p10, %f3, %f3;
+    selp.s32            %r11, 1, 0, %p10;
+    st.global.u32       [%rd1], %r11;
+    setp.lt.f32         %p12, %f3, 0f3F800000;
+    selp.s32            %r13, 1, 0, %p12;
+    setp.ge.f32         %p14, %f3, 0f3F800000;
+    selp.s32            %r15, 1, 0, %p14;
+    add.s32             %r16, %r13, %r15;
+    st.global.u32       [%rd1+4], %r16;
+    setp.eq.f32         %p17, %f3, %f3;
+    selp.s32            %r18, 1, 0, %p17;
+    st.global.u32       [%rd1+8], %r18;
+    mov.u32             %r24, -2;
+    st.global.u32       [%rd1+12], %r24;
+    ret;
+}

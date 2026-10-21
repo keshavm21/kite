@@ -1,0 +1,164 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.shared .align 4 .f32 matmul_tiled_ta[256];
+.shared .align 4 .f32 matmul_tiled_tb[256];
+
+.visible .entry matmul_tiled(
+    .param .u32 matmul_tiled_param_0,
+    .param .u32 matmul_tiled_param_1,
+    .param .u32 matmul_tiled_param_2,
+    .param .u64 matmul_tiled_param_3,
+    .param .u64 matmul_tiled_param_4,
+    .param .u64 matmul_tiled_param_5
+)
+{
+    .reg .pred  %p<61>;
+    .reg .b32   %r<94>;
+    .reg .f32   %f<90>;
+    .reg .b64   %rd<96>;
+
+    ld.param.u32        %r0, [matmul_tiled_param_0];
+    ld.param.u32        %r1, [matmul_tiled_param_1];
+    ld.param.u32        %r2, [matmul_tiled_param_2];
+    ld.param.u64        %rd3, [matmul_tiled_param_3];
+    cvta.to.global.u64  %rd3, %rd3;
+    ld.param.u64        %rd4, [matmul_tiled_param_4];
+    cvta.to.global.u64  %rd4, %rd4;
+    ld.param.u64        %rd5, [matmul_tiled_param_5];
+    cvta.to.global.u64  %rd5, %rd5;
+    mov.u32             %r74, matmul_tiled_ta;
+    mov.u32             %r75, matmul_tiled_tb;
+
+$L_entry:
+    mov.u32             %r6, %tid.x;
+    mov.u32             %r8, %tid.y;
+    mov.u32             %r10, %ctaid.y;
+    mul.lo.s32          %r11, %r10, 16;
+    add.s32             %r12, %r11, %r8;
+    mov.u32             %r14, %ctaid.x;
+    mul.lo.s32          %r15, %r14, 16;
+    add.s32             %r16, %r15, %r6;
+    mov.f32             %f65, 0f00000000;
+    mov.u32             %r66, 0;
+
+$L_for_cond_1:
+    add.s32             %r20, %r2, 15;
+    div.s32             %r21, %r20, 16;
+    setp.lt.s32         %p22, %r66, %r21;
+    @!%p22 bra          $L_for_end_4;
+
+$L_for_body_2:
+    mul.lo.s32          %r23, %r66, 16;
+    add.s32             %r24, %r23, %r6;
+    add.s32             %r27, %r23, %r8;
+    setp.lt.s32         %p29, %r12, %r0;
+    @!%p29 bra          $L_if_else_6;
+
+$L_and_rhs_8:
+    setp.lt.s32         %p30, %r24, %r2;
+    @!%p30 bra          $L_if_else_6;
+
+$L_if_then_5:
+    mul.lo.s32          %r31, %r8, 16;
+    add.s32             %r32, %r31, %r6;
+    mul.lo.s32          %r33, %r12, %r2;
+    add.s32             %r34, %r33, %r24;
+    mul.wide.s32        %rd76, %r34, 4;
+    add.s64             %rd77, %rd3, %rd76;
+    ld.global.f32       %f35, [%rd77];
+    shl.b32             %r78, %r32, 2;
+    add.s32             %r79, %r74, %r78;
+    st.shared.f32       [%r79], %f35;
+    bra.uni             $L_if_end_7;
+
+$L_if_else_6:
+    mul.lo.s32          %r36, %r8, 16;
+    add.s32             %r37, %r36, %r6;
+    shl.b32             %r80, %r37, 2;
+    add.s32             %r81, %r74, %r80;
+    mov.f32             %f82, 0f00000000;
+    st.shared.f32       [%r81], %f82;
+
+$L_if_end_7:
+    setp.lt.s32         %p38, %r27, %r2;
+    @!%p38 bra          $L_if_else_10;
+
+$L_and_rhs_12:
+    setp.lt.s32         %p39, %r16, %r1;
+    @!%p39 bra          $L_if_else_10;
+
+$L_if_then_9:
+    mul.lo.s32          %r40, %r8, 16;
+    add.s32             %r41, %r40, %r6;
+    mul.lo.s32          %r42, %r27, %r1;
+    add.s32             %r43, %r42, %r16;
+    mul.wide.s32        %rd83, %r43, 4;
+    add.s64             %rd84, %rd4, %rd83;
+    ld.global.f32       %f44, [%rd84];
+    shl.b32             %r85, %r41, 2;
+    add.s32             %r86, %r75, %r85;
+    st.shared.f32       [%r86], %f44;
+    bra.uni             $L_if_end_11;
+
+$L_if_else_10:
+    mul.lo.s32          %r45, %r8, 16;
+    add.s32             %r46, %r45, %r6;
+    shl.b32             %r87, %r46, 2;
+    add.s32             %r88, %r75, %r87;
+    mov.f32             %f89, 0f00000000;
+    st.shared.f32       [%r88], %f89;
+
+$L_if_end_11:
+    bar.sync            0;
+    mov.f32             %f69, %f65;
+    mov.u32             %r70, 0;
+
+$L_for_cond_13:
+    setp.lt.s32         %p48, %r70, 16;
+    @!%p48 bra          $L_for_end_16;
+
+$L_for_body_14:
+    mul.lo.s32          %r49, %r8, 16;
+    add.s32             %r50, %r49, %r70;
+    shl.b32             %r90, %r50, 2;
+    add.s32             %r91, %r74, %r90;
+    ld.shared.f32       %f51, [%r91];
+    mul.lo.s32          %r52, %r70, 16;
+    add.s32             %r53, %r52, %r6;
+    shl.b32             %r92, %r53, 2;
+    add.s32             %r93, %r75, %r92;
+    ld.shared.f32       %f54, [%r93];
+    mul.rn.f32          %f55, %f51, %f54;
+    add.rn.f32          %f56, %f69, %f55;
+    add.s32             %r57, %r70, 1;
+    mov.f32             %f69, %f56;
+    mov.u32             %r70, %r57;
+    bra.uni             $L_for_cond_13;
+
+$L_for_end_16:
+    bar.sync            0;
+    add.s32             %r58, %r66, 1;
+    mov.f32             %f65, %f69;
+    mov.u32             %r66, %r58;
+    bra.uni             $L_for_cond_1;
+
+$L_for_end_4:
+    setp.lt.s32         %p59, %r12, %r0;
+    @!%p59 bra          $L_if_end_18;
+
+$L_and_rhs_19:
+    setp.lt.s32         %p60, %r16, %r1;
+    @!%p60 bra          $L_if_end_18;
+
+$L_if_then_17:
+    mul.lo.s32          %r61, %r12, %r1;
+    add.s32             %r62, %r61, %r16;
+    mul.wide.s32        %rd94, %r62, 4;
+    add.s64             %rd95, %rd5, %rd94;
+    st.global.f32       [%rd95], %f65;
+
+$L_if_end_18:
+    ret;
+}

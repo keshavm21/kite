@@ -1,0 +1,63 @@
+kernel @softmax_rows(i32 %rows.0, i32 %cols.1, ptr.f32 %x.2, ptr.f32 %y.3) {
+entry:
+  %4 = special i32 ctaid.x
+  %5 = special i32 ntid.x
+  %6 = mul i32 %4, %5
+  %7 = special i32 tid.x
+  %8 = add i32 %6, %7
+  %10 = ge i32 %8, %rows.0
+  br %10, if.then.1, if.end.2
+if.then.1:
+  ret
+if.end.2:
+  %11 = mul i32 %8, %cols.1
+  %13 = load f32 global %x.2[%11]
+  %m.41 = copy f32 %13
+  %c.42 = copy i32 1
+  jmp for.cond.3
+for.cond.3:
+  %16 = lt i32 %c.42, %cols.1
+  br %16, for.body.4, for.end.6
+for.body.4:
+  %17 = add i32 %11, %c.42
+  %18 = load f32 global %x.2[%17]
+  %19 = max f32 %m.41, %18
+  %20 = add i32 %c.42, 1
+  %m.41 = copy f32 %19
+  %c.42 = copy i32 %20
+  jmp for.cond.3
+for.end.6:
+  %sum.45 = copy f32 0.0
+  %c.46 = copy i32 0
+  jmp for.cond.7
+for.cond.7:
+  %23 = lt i32 %c.46, %cols.1
+  br %23, for.body.8, for.end.10
+for.body.8:
+  %24 = add i32 %11, %c.46
+  %25 = load f32 global %x.2[%24]
+  %26 = sub f32 %25, %m.41
+  %27 = exp f32 %26
+  store f32 global %y.3[%24], %27
+  %30 = add f32 %sum.45, %27
+  %31 = add i32 %c.46, 1
+  %sum.45 = copy f32 %30
+  %c.46 = copy i32 %31
+  jmp for.cond.7
+for.end.10:
+  %c.48 = copy i32 0
+  jmp for.cond.11
+for.cond.11:
+  %33 = lt i32 %c.48, %cols.1
+  br %33, for.body.12, for.end.14
+for.body.12:
+  %34 = add i32 %11, %c.48
+  %36 = load f32 global %y.3[%34]
+  %37 = div f32 %36, %sum.45
+  store f32 global %y.3[%34], %37
+  %38 = add i32 %c.48, 1
+  %c.48 = copy i32 %38
+  jmp for.cond.11
+for.end.14:
+  ret
+}

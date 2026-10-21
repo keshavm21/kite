@@ -1,0 +1,35 @@
+kernel @casts(i32 %n.0, ptr.f32 %x.1, ptr.i32 %q.2, ptr.f32 %y.3) {
+entry:
+  %4 = special i32 tid.x
+  %6 = lt i32 %4, %n.0
+  br %6, if.end.2, if.then.1
+if.then.1:
+  ret
+if.end.2:
+  %7 = load f32 global %x.1[%4]
+  %8 = mul f32 %7, 10.0
+  %10 = ftoi %8
+  %13 = lt i32 %10, 0
+  br %13, sc.true.3, or.rhs.6
+or.rhs.6:
+  %14 = gt i32 %10, 5
+  br %14, sc.true.3, sc.false.4
+sc.true.3:
+  %26 = copy bool true
+  jmp sc.end.5
+sc.false.4:
+  %26 = copy bool false
+  jmp sc.end.5
+sc.end.5:
+  %16 = mul i32 %10, 2
+  %17 = btoi %26
+  %18 = add i32 %16, %17
+  store i32 global %q.2[%4], %18
+  %19 = abs f32 %8
+  %20 = sqrt f32 %19
+  %21 = min i32 %10, 3
+  %22 = itof %21
+  %23 = add f32 %20, %22
+  store f32 global %y.3[%4], %23
+  ret
+}

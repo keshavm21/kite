@@ -21,7 +21,7 @@ sc.false.4:
   %26 = copy bool false
   jmp sc.end.5
 sc.end.5:
-  %16 = mul i32 %10, 2
+  %16 = shl i32 %10, 1
   %17 = btoi %26
   %18 = add i32 %16, %17
   store i32 global %q.2[%4], %18

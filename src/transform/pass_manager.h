@@ -15,9 +15,9 @@ struct Step {
     int maxRounds = 1;
 };
 
-// The -O1 pipeline (LICM and strength reduction join in Milestone 8):
+// The -O1 pipeline:
 //   remove-unreachable, ssa, { constfold copyprop gvn dce simplifycfg } until stable (max 4 rounds),
-//   constfold, dce, simplifycfg, out-of-ssa
+//   licm, gvn, strength, constfold, dce, simplifycfg, out-of-ssa
 std::vector<Step> o1Pipeline();
 std::vector<Step> flatPipeline(const std::vector<std::string>& names);  // each name is a single step
 std::vector<std::string> passNames();

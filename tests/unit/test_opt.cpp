@@ -303,7 +303,8 @@ kernel row_sum(rows: i32, cols: i32, m: *f32, out: *f32) {
     out[r] = acc;
 }
 )");
-    CHECK(has(ir, "for.body.4:\n  %14 = mul i32 %8, %cols.1"));
+    CHECK(has(ir, "if.end.2:\n  %14 = mul i32 %8, %cols.1"));  // hoisted by licm
+    CHECK_FALSE(has(ir, "for.body.4:\n  %14"));
     CHECK_FALSE(has(ir, "for.step"));
     CHECK_FALSE(has(ir, "phi"));
     CHECK(count(ir, "copy") == 4);  // acc and c initialised in if.end.2 and updated in for.body.4
@@ -327,4 +328,98 @@ TEST_CASE("pass manager: stats, print-after-all and the fixpoint limit") {
     CHECK(has(log.str(), "; --- after copyprop (round 1) ---"));
     CHECK(has(log.str(), "kernel @k("));
     CHECK_FALSE(has(stats.str(), "round 5"));
+}
+
+TEST_CASE("licm: r * cols leaves row_sum's loop, the load and the loop-carried adds stay") {
+    std::string ir = after(R"(
+kernel row_sum(rows: i32, cols: i32, m: *f32, out: *f32) {
+    var r: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (r >= rows) { return; }
+    var acc: f32 = 0.0;
+    for (var c: i32 = 0; c < cols; c += 1) { acc += m[r * cols + c]; }
+    out[r] = acc;
+}
+)", {"ssa", "copyprop", "simplifycfg", "licm"});
+    CHECK(has(ir, "if.end.2:\n  %14 = mul i32 %8, %cols.1\n  jmp for.cond.3"));
+    CHECK(has(ir, "%16 = load f32 global %m.2[%15]"));
+    CHECK(has(ir, "%15 = add i32 %14, %c."));
+}
+
+TEST_CASE("licm: div, rem, ftoi and loads are never hoisted, nested invariants climb out of both loops") {
+    std::string ir = after(R"(
+kernel k(n: i32, d: i32, x: f32, p: *i32, q: *f32) {
+    for (var i: i32 = 0; i < n; i += 1) {
+        for (var j: i32 = 0; j < n; j += 1) {
+            p[i * n + j] = (n / d) + (n % d) + (x as i32) + p[0] + (n * 3 + d);
+        }
+    }
+}
+)", {"ssa", "copyprop", "licm"});
+    // Find the innermost loop body by locating its store; everything speculatable above must be outside it.
+    size_t store = ir.find("store i32");
+    REQUIRE(store != std::string::npos);
+    std::string head = ir.substr(0, store);
+    size_t body = head.rfind("for.body");
+    std::string inner = head.substr(body);
+    CHECK(has(inner, "div i32"));
+    CHECK(has(inner, "rem i32"));
+    CHECK(has(inner, "ftoi"));
+    CHECK(has(inner, "load i32"));
+    CHECK_FALSE(has(inner, "mul i32 %n.0, 3"));
+}
+
+TEST_CASE("licm: a loop whose header is the entry block has no preheader and is left alone") {
+    // Lowering always emits a preheader, so build the shape by hand: the entry block is its own loop.
+    Function g;
+    g.name = "g";
+    int n = g.newReg(Ty::I32, "n");
+    g.numParams = 1;
+    BasicBlock* e = g.newBlock("entry");
+    int t = g.newReg(Ty::I32);
+    Inst mul;
+    mul.op = Op::Mul; mul.ty = Ty::I32; mul.dst = t;
+    mul.args = {Operand::r(n), Operand::i32(3)};
+    e->insts.push_back(mul);
+    Inst jmp;
+    jmp.op = Op::Jmp; jmp.blocks = {e};
+    e->insts.push_back(jmp);
+    CHECK_FALSE(transform::licm(g));
+    CHECK(g.blocks[0]->insts.size() == 2);
+}
+
+TEST_CASE("strength: mul by a power of two becomes shl, in either operand order; other constants stay") {
+    std::string ir = after(R"(
+kernel k(a: i32, p: *i32) {
+    p[0] = a * 8;
+    p[1] = 4 * a;
+    p[2] = a * 6;
+    p[3] = a * 1;
+    p[4] = a * 0 - 6 * a;
+}
+)", {"ssa", "strength"});
+    CHECK(has(ir, "shl i32 %a.0, 3"));
+    CHECK(has(ir, "shl i32 %a.0, 2"));
+    CHECK(has(ir, "mul i32 %a.0, 6"));
+    CHECK(count(ir, "shl") == 2);
+}
+
+TEST_CASE("strength: signed div by a power of two is NOT a shift (-7 / 2 is -3, -7 >> 1 is -4)") {
+    std::string src = R"(
+kernel k(a: i32, p: *i32) {
+    p[0] = a / 2;
+    p[1] = a % 4;
+}
+)";
+    std::string ir = after(src, {"ssa", "strength"});
+    CHECK(has(ir, "div i32 %a.0, 2"));
+    CHECK(has(ir, "rem i32 %a.0, 4"));
+    CHECK_FALSE(has(ir, "shl"));
+    // and the end-to-end value: -7 / 2 == -3 at -O1
+    Module m = compile("kernel k(p: *i32) { var a: i32 = 0 - 7; p[0] = a / 2; p[1] = a * 2; }");
+    Form form = Form::Lowered;
+    std::string err;
+    transform::PassManager pm({true, false, false});
+    REQUIRE_MESSAGE(pm.run(m, transform::o1Pipeline(), form, err), err);
+    CHECK(has(toString(m.kernels[0]), "-3"));
+    CHECK(has(toString(m.kernels[0]), "-14"));
 }

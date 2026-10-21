@@ -16,6 +16,7 @@ and.rhs.3:
   %19 = lt i32 %16, %n.1
   br %19, if.then.1, if.end.2
 if.then.1:
+  %23 = mul i32 %10, %k.2
   %acc.36 = copy f32 0.0
   %i.37 = copy i32 0
   jmp for.cond.4
@@ -23,7 +24,6 @@ for.cond.4:
   %22 = lt i32 %i.37, %k.2
   br %22, for.body.5, for.end.7
 for.body.5:
-  %23 = mul i32 %10, %k.2
   %24 = add i32 %23, %i.37
   %25 = load f32 global %a.3[%24]
   %26 = mul i32 %i.37, %n.1

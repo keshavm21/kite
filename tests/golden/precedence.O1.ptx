@@ -40,7 +40,7 @@ $L_sc_true_1:
 $L_sc_false_2:
 
 $L_sc_end_3:
-    mul.lo.s32          %r28, %r0, 2;
+    shl.b32             %r28, %r0, 1;
     mul.wide.s32        %rd43, %r28, 4;
     add.s64             %rd44, %rd2, %rd43;
     ld.global.u32       %r30, [%rd44];

@@ -29,6 +29,8 @@ const PassInfo kPasses[] = {
     {"constfold", S, -1, constfold},
     {"copyprop", S, -1, copyprop},
     {"gvn", S, -1, gvn},
+    {"licm", S, -1, licm},
+    {"strength", -1, -1, strength},
     {"dce", -1, -1, dce},
     {"simplifycfg", -1, -1, simplifycfg},
 };
@@ -46,7 +48,7 @@ std::vector<std::string> passNames() {
 std::vector<Step> o1Pipeline() {
     return {{{"remove-unreachable", "ssa"}, 1},
             {{"constfold", "copyprop", "gvn", "dce", "simplifycfg"}, 4},
-            {{"constfold", "dce", "simplifycfg", "out-of-ssa"}, 1}};
+            {{"licm", "gvn", "strength", "constfold", "dce", "simplifycfg", "out-of-ssa"}, 1}};
 }
 
 std::vector<Step> flatPipeline(const std::vector<std::string>& names) {
@@ -78,6 +80,7 @@ bool PassManager::run(ir::Module& module, const std::vector<Step>& steps, Form& 
         }
         return true;
     };
+    licmTotals() = {};
     record("lowered", module, false);
     bool verified = true;  // is the current IR known to verify?
     for (const Step& step : steps) {
@@ -129,6 +132,8 @@ void PassManager::printStats(std::ostream& os) const {
         for (size_t k = 0; k < r.counts.size(); ++k) os << std::right << std::setw(std::max<size_t>(kernelNames_[k].size(), 7) + 2) << r.counts[k];
         os << "  " << (r.changed ? "yes" : "-") << '\n';
     }
+    const LicmStats& l = licmTotals();
+    if (l.loops > 0) os << "licm: " << l.loops << " loop(s), " << l.hoisted << " instruction(s) hoisted, " << l.skipped << " skipped (no preheader)\n";
 }
 
 }  // namespace kite::transform

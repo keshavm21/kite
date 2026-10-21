@@ -45,6 +45,7 @@ $L_and_rhs_3:
     @!%p19 bra          $L_if_end_2;
 
 $L_if_then_1:
+    mul.lo.s32          %r23, %r10, %r2;
     mov.f32             %f36, 0f00000000;
     mov.u32             %r37, 0;
 
@@ -53,7 +54,6 @@ $L_for_cond_4:
     @!%p22 bra          $L_for_end_7;
 
 $L_for_body_5:
-    mul.lo.s32          %r23, %r10, %r2;
     add.s32             %r24, %r23, %r37;
     mul.wide.s32        %rd42, %r24, 4;
     add.s64             %rd43, %rd3, %rd42;

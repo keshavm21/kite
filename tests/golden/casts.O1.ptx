@@ -51,7 +51,7 @@ $L_sc_false_4:
     mov.pred            %p26, 0;
 
 $L_sc_end_5:
-    mul.lo.s32          %r16, %r10, 2;
+    shl.b32             %r16, %r10, 1;
     selp.s32            %r17, 1, 0, %p26;
     add.s32             %r18, %r16, %r17;
     mul.wide.s32        %rd29, %r4, 4;

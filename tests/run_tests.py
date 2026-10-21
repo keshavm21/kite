@@ -9,26 +9,34 @@
 Categories implemented so far:
   golden  tests/golden/NAME.ast  vs  `kitec NAME.kite --emit=ast`
           tests/golden/NAME.ir   vs  `kitec NAME.kite --emit=ir -O0 --verify-each`
+          tests/golden/NAME.ptx  vs  `kitec NAME.kite --emit=ptx -O0`
           the source is tests/golden/NAME.kite, else tests/exec/NAME.kite, else examples/NAME.kite
   errors  tests/errors/*.kite whose first line is `// ERROR: LINE:COL: message`
           kitec must exit 1 and print `...:LINE:COL: error: message` on stderr
   exec    every examples/*.kite and tests/exec/*.kite: `kitec run -O0` and `kitec run -O1`
           (both with --verify-each) must succeed and print byte-for-byte identical output
-Later milestones add golden .O1.ir / .ptx files and the ptxas check.
+  ptx     every source: `kitec --emit=ptx` must assemble with `ptxas -arch=sm_75` when ptxas is on PATH;
+          otherwise tests/ptx_lint.py does a structural check (undeclared registers, bad labels, ...)
+Later milestones add golden .O1.ir / .O1.ptx files.
 """
 import argparse
 import difflib
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ptx_lint import lint  # noqa: E402
 SOURCE_DIRS = [ROOT / "tests/golden", ROOT / "tests/exec", ROOT / "examples"]
 
 # golden file extension -> kitec arguments that produce its contents
 GOLDEN_KINDS = {
     "ast": ["--emit=ast"],
     "ir": ["--emit=ir", "-O0", "--verify-each"],
+    "ptx": ["--emit=ptx", "-O0"],
 }
 
 
@@ -107,6 +115,20 @@ def check_exec(kitec, src):
     return None
 
 
+def check_ptx(kitec, src):
+    r = run(kitec, src, "--emit=ptx", "-O0")
+    if r.returncode != 0:
+        return f"kitec exited {r.returncode}:\n{r.stderr}"
+    ptxas = shutil.which("ptxas")
+    if not ptxas:
+        return "\n".join(lint(r.stdout)) or None
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Path(tmp) / "out.ptx"
+        f.write_text(r.stdout)
+        a = subprocess.run([ptxas, "-arch=sm_75", str(f), "-o", "/dev/null"], capture_output=True, text=True)
+    return None if a.returncode == 0 else f"ptxas failed:\n{a.stderr}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-k", default="", help="run only tests whose name contains this")
@@ -143,6 +165,11 @@ def main():
         name = f"exec/{src.stem}"
         if args.k in name:
             report(name, check_exec(kitec, src))
+
+    for src in exec_sources() + sorted((ROOT / "tests/golden").glob("*.kite")):
+        name = f"ptx/{src.stem}"
+        if args.k in name:
+            report(name, check_ptx(kitec, src))
 
     for name, err in failures:
         print(f"\n--- {name} ---\n{err}")

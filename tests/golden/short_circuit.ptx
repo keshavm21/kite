@@ -1,0 +1,87 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry short_circuit(
+    .param .u32 short_circuit_param_0,
+    .param .u64 short_circuit_param_1,
+    .param .u64 short_circuit_param_2
+)
+{
+    .reg .pred  %p<21>;
+    .reg .b32   %r<24>;
+    .reg .b64   %rd<32>;
+
+    ld.param.u32        %r0, [short_circuit_param_0];
+    ld.param.u64        %rd1, [short_circuit_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [short_circuit_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+
+$L_entry:
+    mov.u32             %r3, %tid.x;
+    mov.u32             %r4, %r3;
+    mov.u32             %r5, 0;
+    setp.lt.s32         %p6, %r4, %r0;
+    @!%p6 bra           $L_if_end_2;
+
+$L_and_rhs_3:
+    mul.wide.s32        %rd24, %r4, 4;
+    add.s64             %rd25, %rd1, %rd24;
+    ld.global.u32       %r7, [%rd25];
+    rem.s32             %r8, %r7, 2;
+    setp.eq.s32         %p9, %r8, 0;
+    @!%p9 bra           $L_if_end_2;
+
+$L_if_then_1:
+    add.s32             %r10, %r5, 1;
+    mov.u32             %r5, %r10;
+
+$L_if_end_2:
+    setp.ge.s32         %p11, %r4, %r0;
+    @%p11 bra           $L_if_then_4;
+
+$L_or_rhs_6:
+    mul.wide.s32        %rd26, %r4, 4;
+    add.s64             %rd27, %rd1, %rd26;
+    ld.global.u32       %r12, [%rd27];
+    setp.gt.s32         %p13, %r12, 2;
+    @!%p13 bra          $L_if_end_5;
+
+$L_if_then_4:
+    add.s32             %r14, %r5, 10;
+    mov.u32             %r5, %r14;
+
+$L_if_end_5:
+    setp.lt.s32         %p16, %r4, %r0;
+    @!%p16 bra          $L_or_rhs_10;
+
+$L_and_rhs_11:
+    mul.wide.s32        %rd28, %r4, 4;
+    add.s64             %rd29, %rd1, %rd28;
+    ld.global.u32       %r17, [%rd29];
+    setp.eq.s32         %p18, %r17, 1;
+    @!%p18 bra          $L_sc_true_7;
+
+$L_or_rhs_10:
+    setp.eq.s32         %p19, %r4, 7;
+    @!%p19 bra          $L_sc_false_8;
+
+$L_sc_true_7:
+    mov.pred            %p15, 1;
+    bra.uni             $L_sc_end_9;
+
+$L_sc_false_8:
+    mov.pred            %p15, 0;
+
+$L_sc_end_9:
+    mov.pred            %p20, %p15;
+    selp.s32            %r21, 1, 0, %p20;
+    mul.lo.s32          %r22, %r21, 100;
+    add.s32             %r23, %r5, %r22;
+    mov.u32             %r5, %r23;
+    mul.wide.s32        %rd30, %r4, 4;
+    add.s64             %rd31, %rd2, %rd30;
+    st.global.u32       [%rd31], %r5;
+    ret;
+}

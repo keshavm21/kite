@@ -1,7 +1,10 @@
 #include <fstream>
 #include <iostream>
+#include <regex>
+#include <stdexcept>
 #include <string>
 
+#include "codegen/ptx.h"
 #include "frontend/ast_printer.h"
 #include "frontend/lexer.h"
 #include "frontend/parser.h"
@@ -17,7 +20,7 @@
 namespace {
 
 void usage() {
-    std::cerr << "usage: kitec FILE.kite [-o OUT] [-O0|-O1] [--emit=tokens|ast|ir] [--verify-each]\n"
+    std::cerr << "usage: kitec FILE.kite [-o OUT] [-O0|-O1] [--emit=tokens|ast|ir|ptx] [--target=sm_75] [--verify-each]\n"
                  "       kitec run FILE.kite [-O0|-O1] [--verify-each]\n";
 }
 
@@ -71,7 +74,7 @@ int runSpec(const std::string& src, const kite::ir::Module& module, std::ostream
 }  // namespace
 
 int main(int argc, char** argv) {
-    std::string inPath, outPath, emit;
+    std::string inPath, outPath, emit, target = "sm_75";
     bool runMode = false;
     int optLevel = 0;  // -O1 is accepted now and takes effect once the pass manager exists (Milestone 5)
     for (int i = 1; i < argc; ++i) {
@@ -82,6 +85,7 @@ int main(int argc, char** argv) {
         else if (a == "-O1") optLevel = 1;
         else if (a == "--verify-each") continue;  // the IR is verified after lowering always; passes arrive in Milestone 5
         else if (a.rfind("--emit=", 0) == 0) emit = a.substr(7);
+        else if (a.rfind("--target=", 0) == 0) target = a.substr(9);
         else if (!a.empty() && a[0] != '-' && inPath.empty()) inPath = a;
         else {
             usage();
@@ -89,8 +93,8 @@ int main(int argc, char** argv) {
         }
     }
     (void)optLevel;
-    if (inPath.empty() || (!emit.empty() && emit != "tokens" && emit != "ast" && emit != "ir") ||
-        (runMode && !emit.empty())) {
+    if (inPath.empty() || (!emit.empty() && emit != "tokens" && emit != "ast" && emit != "ir" && emit != "ptx") ||
+        (runMode && !emit.empty()) || !std::regex_match(target, std::regex("sm_[0-9]+"))) {
         usage();
         return 2;
     }
@@ -142,6 +146,12 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    std::cerr << "kitec: PTX generation is not implemented yet (Milestone 4); use --emit=tokens, ast or ir, or `kitec run`\n";
-    return 1;
+    // emit == "ptx" or no --emit: the compiler's normal output.
+    try {
+        out << kite::codegen::PtxEmitter(module, target).emit();
+    } catch (const std::logic_error& e) {
+        std::cerr << "kitec: internal error: " << e.what() << '\n';
+        return 3;
+    }
+    return 0;
 }

@@ -1,0 +1,91 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.shared .align 4 .b32 control_flow_buf[64];
+
+.visible .entry control_flow(
+    .param .u32 control_flow_param_0,
+    .param .u64 control_flow_param_1
+)
+{
+    .reg .pred  %p<12>;
+    .reg .b32   %r<19>;
+    .reg .b64   %rd<18>;
+
+    ld.param.u32        %r0, [control_flow_param_0];
+    ld.param.u64        %rd1, [control_flow_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    mov.u32             %r13, control_flow_buf;
+
+$L_entry:
+    mov.u32             %r2, 0;
+
+$L_while_cond_1:
+    setp.lt.s32         %p3, %r2, %r0;
+    @!%p3 bra           $L_while_end_3;
+
+$L_while_body_2:
+    setp.eq.s32         %p4, %r2, 3;
+    @!%p4 bra           $L_if_else_5;
+
+$L_if_then_4:
+    add.s32             %r5, %r2, 1;
+    mov.u32             %r2, %r5;
+    bra.uni             $L_while_cond_1;
+
+$L_if_else_5:
+    setp.eq.s32         %p6, %r2, 7;
+    @!%p6 bra           $L_if_else_8;
+
+$L_if_then_7:
+    bra.uni             $L_while_end_3;
+
+$L_if_else_8:
+    shl.b32             %r14, %r2, 2;
+    add.s32             %r15, %r13, %r14;
+    st.shared.u32       [%r15], %r2;
+
+$L_if_end_9:
+
+$L_if_end_6:
+    add.s32             %r7, %r2, 1;
+    mov.u32             %r2, %r7;
+    bra.uni             $L_while_cond_1;
+
+$L_while_end_3:
+    mov.u32             %r8, 0;
+
+$L_for_cond_10:
+    setp.lt.s32         %p9, %r8, 4;
+    @!%p9 bra           $L_for_end_13;
+
+$L_for_body_11:
+    bar.sync            0;
+
+$L_for_step_12:
+    add.s32             %r10, %r8, 1;
+    mov.u32             %r8, %r10;
+    bra.uni             $L_for_cond_10;
+
+$L_for_end_13:
+    mov.u32             %r2, 0;
+
+$L_for_cond_14:
+    setp.lt.s32         %p11, %r2, 2;
+    @!%p11 bra          $L_for_end_17;
+
+$L_for_body_15:
+    mul.wide.s32        %rd16, %r2, 4;
+    add.s64             %rd17, %rd1, %rd16;
+    mov.u32             %r18, 1;
+    st.global.u32       [%rd17], %r18;
+
+$L_for_step_16:
+    sub.s32             %r12, %r2, 1;
+    mov.u32             %r2, %r12;
+    bra.uni             $L_for_cond_14;
+
+$L_for_end_17:
+    ret;
+}

@@ -1,0 +1,83 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry precedence(
+    .param .u32 precedence_param_0,
+    .param .u64 precedence_param_1,
+    .param .u64 precedence_param_2
+)
+{
+    .reg .pred  %p<40>;
+    .reg .b32   %r<38>;
+    .reg .f32   %f<34>;
+    .reg .b64   %rd<44>;
+
+    ld.param.u32        %r0, [precedence_param_0];
+    ld.param.u64        %rd1, [precedence_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [precedence_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+
+$L_entry:
+    mov.u32             %r36, 2;
+    mul.lo.s32          %r3, %r36, 3;
+    add.s32             %r4, 1, %r3;
+    mov.u32             %r37, 4;
+    div.s32             %r5, %r37, 2;
+    rem.s32             %r6, %r5, 3;
+    sub.s32             %r7, %r4, %r6;
+    mov.u32             %r8, %r7;
+    setp.lt.s32         %p10, %r0, 1;
+    @%p10 bra           $L_sc_true_1;
+
+$L_or_rhs_4:
+    setp.gt.s32         %p11, %r0, 5;
+    @!%p11 bra          $L_sc_false_2;
+
+$L_and_rhs_5:
+    setp.ne.s32         %p12, %r0, 3;
+    mov.pred            %p38, 1;
+    xor.pred            %p39, %p12, %p38;
+    not.pred            %p13, %p39;
+    @!%p13 bra          $L_sc_false_2;
+
+$L_sc_true_1:
+    mov.pred            %p9, 1;
+    bra.uni             $L_sc_end_3;
+
+$L_sc_false_2:
+    mov.pred            %p9, 0;
+
+$L_sc_end_3:
+    mov.pred            %p14, %p9;
+    ld.global.f32       %f15, [%rd1];
+    neg.f32             %f16, %f15;
+    mul.rn.f32          %f17, %f16, 0f40000000;
+    add.rn.f32          %f18, %f17, 0f3A83126F;
+    mov.f32             %f19, %f18;
+    add.s32             %r20, %r0, 1;
+    sub.s32             %r21, %r0, 1;
+    neg.s32             %r22, %r21;
+    mul.lo.s32          %r23, %r20, %r22;
+    min.s32             %r24, %r0, 3;
+    max.s32             %r25, %r8, %r24;
+    add.s32             %r26, %r23, %r25;
+    mov.u32             %r27, %r26;
+    mul.lo.s32          %r28, %r0, 2;
+    mul.lo.s32          %r29, %r0, 2;
+    mul.wide.s32        %rd40, %r29, 4;
+    add.s64             %rd41, %rd2, %rd40;
+    ld.global.u32       %r30, [%rd41];
+    add.s32             %r31, %r30, %r8;
+    mul.wide.s32        %rd42, %r28, 4;
+    add.s64             %rd43, %rd2, %rd42;
+    st.global.u32       [%rd43], %r31;
+    ld.global.f32       %f32, [%rd1];
+    div.rn.f32          %f33, %f32, 0f40200000;
+    st.global.f32       [%rd1], %f33;
+    mov.u32             %r34, %r0;
+    rem.s32             %r35, %r34, 4;
+    mov.u32             %r34, %r35;
+    ret;
+}

@@ -1,0 +1,81 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry dead_code(
+    .param .u64 dead_code_param_0
+)
+{
+    .reg .pred  %p<13>;
+    .reg .b32   %r<19>;
+    .reg .b64   %rd<23>;
+
+    ld.param.u64        %rd0, [dead_code_param_0];
+    cvta.to.global.u64  %rd0, %rd0;
+
+$L_entry:
+    mov.u32             %r1, %tid.x;
+    mov.u32             %r2, %r1;
+    mov.u32             %r3, 0;
+    mov.u32             %r4, 0;
+
+$L_for_cond_1:
+    setp.lt.s32         %p5, %r4, 10;
+    @!%p5 bra           $L_for_end_4;
+
+$L_for_body_2:
+    setp.eq.s32         %p6, %r4, %r2;
+    @!%p6 bra           $L_if_end_6;
+
+$L_if_then_5:
+    bra.uni             $L_for_step_3;
+
+$L_dead_7:
+    add.s32             %r7, %r3, 1000;
+    mov.u32             %r3, %r7;
+
+$L_if_end_6:
+    setp.gt.s32         %p8, %r4, 6;
+    @!%p8 bra           $L_if_end_9;
+
+$L_if_then_8:
+    bra.uni             $L_for_end_4;
+
+$L_dead_10:
+    add.s32             %r9, %r3, 2000;
+    mov.u32             %r3, %r9;
+
+$L_if_end_9:
+    add.s32             %r10, %r3, %r4;
+    mov.u32             %r3, %r10;
+
+$L_for_step_3:
+    add.s32             %r11, %r4, 1;
+    mov.u32             %r4, %r11;
+    bra.uni             $L_for_cond_1;
+
+$L_for_end_4:
+    setp.eq.s32         %p12, %r2, 3;
+    @!%p12 bra          $L_if_end_12;
+
+$L_if_then_11:
+    mov.u32             %r15, 1;
+    neg.s32             %r13, %r15;
+    mul.wide.s32        %rd16, %r2, 4;
+    add.s64             %rd17, %rd0, %rd16;
+    st.global.u32       [%rd17], %r13;
+    ret;
+
+$L_dead_13:
+    mov.u32             %r18, 2;
+    neg.s32             %r14, %r18;
+    mul.wide.s32        %rd19, %r2, 4;
+    add.s64             %rd20, %rd0, %rd19;
+    st.global.u32       [%rd20], %r14;
+
+$L_if_end_12:
+    mul.wide.s32        %rd21, %r2, 4;
+    add.s64             %rd22, %rd0, %rd21;
+    st.global.u32       [%rd22], %r3;
+    ret;
+}

@@ -1,0 +1,43 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry relu(
+    .param .u32 relu_param_0,
+    .param .u64 relu_param_1,
+    .param .u64 relu_param_2
+)
+{
+    .reg .pred  %p<10>;
+    .reg .b32   %r<9>;
+    .reg .f32   %f<12>;
+    .reg .b64   %rd<16>;
+
+    ld.param.u32        %r0, [relu_param_0];
+    ld.param.u64        %rd1, [relu_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+    ld.param.u64        %rd2, [relu_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+
+$L_entry:
+    mov.u32             %r3, %ctaid.x;
+    mov.u32             %r4, %ntid.x;
+    mul.lo.s32          %r5, %r3, %r4;
+    mov.u32             %r6, %tid.x;
+    add.s32             %r7, %r5, %r6;
+    mov.u32             %r8, %r7;
+    setp.lt.s32         %p9, %r8, %r0;
+    @!%p9 bra           $L_if_end_2;
+
+$L_if_then_1:
+    mul.wide.s32        %rd12, %r8, 4;
+    add.s64             %rd13, %rd1, %rd12;
+    ld.global.f32       %f10, [%rd13];
+    max.f32             %f11, %f10, 0f00000000;
+    mul.wide.s32        %rd14, %r8, 4;
+    add.s64             %rd15, %rd2, %rd14;
+    st.global.f32       [%rd15], %f11;
+
+$L_if_end_2:
+    ret;
+}

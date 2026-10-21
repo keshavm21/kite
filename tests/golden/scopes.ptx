@@ -1,0 +1,94 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry scopes(
+    .param .u32 scopes_param_0,
+    .param .u64 scopes_param_1
+)
+{
+    .reg .pred  %p<18>;
+    .reg .b32   %r<20>;
+    .reg .f32   %f<8>;
+    .reg .b64   %rd<26>;
+
+    ld.param.u32        %r0, [scopes_param_0];
+    ld.param.u64        %rd1, [scopes_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+
+$L_entry:
+    mov.u32             %r2, 1;
+    setp.gt.s32         %p3, %r0, 0;
+    @!%p3 bra           $L_if_end_2;
+
+$L_if_then_1:
+    mov.u32             %r4, 2;
+    st.global.u32       [%rd1], %r4;
+
+$L_if_end_2:
+    mov.u32             %r5, 0;
+
+$L_for_cond_3:
+    setp.lt.s32         %p6, %r5, 2;
+    @!%p6 bra           $L_for_end_6;
+
+$L_for_body_4:
+    mov.f32             %f7, 0f3F000000;
+    cvt.rzi.s32.f32     %r8, %f7;
+    mul.wide.s32        %rd20, %r5, 4;
+    add.s64             %rd21, %rd1, %rd20;
+    st.global.u32       [%rd21], %r8;
+
+$L_for_step_5:
+    add.s32             %r9, %r5, 1;
+    mov.u32             %r5, %r9;
+    bra.uni             $L_for_cond_3;
+
+$L_for_end_6:
+    mov.u32             %r10, 0;
+
+$L_for_cond_7:
+    setp.lt.s32         %p11, %r10, 2;
+    @!%p11 bra          $L_for_end_10;
+
+$L_for_body_8:
+    mul.wide.s32        %rd22, %r10, 4;
+    add.s64             %rd23, %rd1, %rd22;
+    ld.global.u32       %r12, [%rd23];
+    add.s32             %r13, %r12, %r2;
+    mul.wide.s32        %rd24, %r10, 4;
+    add.s64             %rd25, %rd1, %rd24;
+    st.global.u32       [%rd25], %r13;
+
+$L_for_step_9:
+    add.s32             %r14, %r10, 1;
+    mov.u32             %r10, %r14;
+    bra.uni             $L_for_cond_7;
+
+$L_for_end_10:
+    mov.u32             %r15, 0;
+    mov.u32             %r15, 0;
+
+$L_for_cond_11:
+    setp.lt.s32         %p16, %r15, 3;
+    @!%p16 bra          $L_for_end_14;
+
+$L_for_body_12:
+    mov.pred            %p17, 1;
+    @!%p17 bra          $L_if_end_16;
+
+$L_if_then_15:
+    bra.uni             $L_for_end_14;
+
+$L_if_end_16:
+
+$L_for_step_13:
+    add.s32             %r18, %r15, 1;
+    mov.u32             %r15, %r18;
+    bra.uni             $L_for_cond_11;
+
+$L_for_end_14:
+    add.s32             %r19, %r2, %r15;
+    st.global.u32       [%rd1+4], %r19;
+    ret;
+}

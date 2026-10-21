@@ -1,0 +1,117 @@
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry softmax_rows(
+    .param .u32 softmax_rows_param_0,
+    .param .u32 softmax_rows_param_1,
+    .param .u64 softmax_rows_param_2,
+    .param .u64 softmax_rows_param_3
+)
+{
+    .reg .pred  %p<34>;
+    .reg .b32   %r<39>;
+    .reg .f32   %f<46>;
+    .reg .b64   %rd<52>;
+
+    ld.param.u32        %r0, [softmax_rows_param_0];
+    ld.param.u32        %r1, [softmax_rows_param_1];
+    ld.param.u64        %rd2, [softmax_rows_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+    ld.param.u64        %rd3, [softmax_rows_param_3];
+    cvta.to.global.u64  %rd3, %rd3;
+
+$L_entry:
+    mov.u32             %r4, %ctaid.x;
+    mov.u32             %r5, %ntid.x;
+    mul.lo.s32          %r6, %r4, %r5;
+    mov.u32             %r7, %tid.x;
+    add.s32             %r8, %r6, %r7;
+    mov.u32             %r9, %r8;
+    setp.ge.s32         %p10, %r9, %r0;
+    @!%p10 bra          $L_if_end_2;
+
+$L_if_then_1:
+    ret;
+
+$L_if_end_2:
+    mul.lo.s32          %r11, %r9, %r1;
+    mov.u32             %r12, %r11;
+    mul.wide.s32        %rd39, %r12, 4;
+    add.s64             %rd40, %rd2, %rd39;
+    ld.global.f32       %f13, [%rd40];
+    mov.f32             %f14, %f13;
+    mov.u32             %r15, 1;
+
+$L_for_cond_3:
+    setp.lt.s32         %p16, %r15, %r1;
+    @!%p16 bra          $L_for_end_6;
+
+$L_for_body_4:
+    add.s32             %r17, %r12, %r15;
+    mul.wide.s32        %rd41, %r17, 4;
+    add.s64             %rd42, %rd2, %rd41;
+    ld.global.f32       %f18, [%rd42];
+    max.f32             %f19, %f14, %f18;
+    mov.f32             %f14, %f19;
+
+$L_for_step_5:
+    add.s32             %r20, %r15, 1;
+    mov.u32             %r15, %r20;
+    bra.uni             $L_for_cond_3;
+
+$L_for_end_6:
+    mov.f32             %f21, 0f00000000;
+    mov.u32             %r22, 0;
+
+$L_for_cond_7:
+    setp.lt.s32         %p23, %r22, %r1;
+    @!%p23 bra          $L_for_end_10;
+
+$L_for_body_8:
+    add.s32             %r24, %r12, %r22;
+    mul.wide.s32        %rd43, %r24, 4;
+    add.s64             %rd44, %rd2, %rd43;
+    ld.global.f32       %f25, [%rd44];
+    sub.rn.f32          %f26, %f25, %f14;
+    mul.rn.f32          %f45, %f26, 0f3FB8AA3B;
+    ex2.approx.f32      %f27, %f45;
+    mov.f32             %f28, %f27;
+    add.s32             %r29, %r12, %r22;
+    mul.wide.s32        %rd46, %r29, 4;
+    add.s64             %rd47, %rd3, %rd46;
+    st.global.f32       [%rd47], %f28;
+    add.rn.f32          %f30, %f21, %f28;
+    mov.f32             %f21, %f30;
+
+$L_for_step_9:
+    add.s32             %r31, %r22, 1;
+    mov.u32             %r22, %r31;
+    bra.uni             $L_for_cond_7;
+
+$L_for_end_10:
+    mov.u32             %r32, 0;
+
+$L_for_cond_11:
+    setp.lt.s32         %p33, %r32, %r1;
+    @!%p33 bra          $L_for_end_14;
+
+$L_for_body_12:
+    add.s32             %r34, %r12, %r32;
+    add.s32             %r35, %r12, %r32;
+    mul.wide.s32        %rd48, %r35, 4;
+    add.s64             %rd49, %rd3, %rd48;
+    ld.global.f32       %f36, [%rd49];
+    div.rn.f32          %f37, %f36, %f21;
+    mul.wide.s32        %rd50, %r34, 4;
+    add.s64             %rd51, %rd3, %rd50;
+    st.global.f32       [%rd51], %f37;
+
+$L_for_step_13:
+    add.s32             %r38, %r32, 1;
+    mov.u32             %r32, %r38;
+    bra.uni             $L_for_cond_11;
+
+$L_for_end_14:
+    ret;
+}

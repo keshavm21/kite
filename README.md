@@ -192,13 +192,14 @@ What the numbers say:
 
 - **Differential testing is the core guarantee.** For every example and every file in `tests/exec`, `kitec run -O0` must equal `-O1`, `--passes=ssa` and `--passes=ssa,out-of-ssa` byte for byte. The interpreter does f32 math in `float`, with `-ffp-contract=off`, so it is bit-identical to PTX `mul.rn`/`add.rn`.
 - The same interpreter output is compared with a real GPU run (`gpu/check_all.sh`, floats at rtol 1e-5).
+- A **fuzzer** (`tests/fuzz`) generates random kernels (loops, branches, loads and stores, i32 and f32) and checks `-O0` against `-O1` and against each pass in isolation, with the verifier on. A clean run over 10,000 seeds found no mismatch. To check the fuzzer itself, four bugs were injected one at a time (LICM hoisting loads, GVN numbering loads, folding f32 `x*0.0` and `x-x`); it caught each within 1500 seeds. CI runs 200 seeds per push.
 - The IR verifier runs after lowering and, in the test runner, after every pass.
 - Golden files pin the AST, the IR at every form, and the PTX; every PTX goes through `ptxas` (or a structural linter when it is not installed).
 - Unit tests (doctest) cover the lexer, parser, sema, lowering, verifier, interpreter, PTX, SSA and each pass.
 
 ## What I'd do next
 
-1. A fuzzer (random well-typed kernels, `-O0` vs `-O1` vs interpreter), which finds the bugs hand-written tests miss.
+1. A test-case reducer for fuzzer failures, and shared-memory/`sync()` programs in the fuzzer.
 2. SCCP (Wegman-Zadeck) instead of `constfold` plus branch folding, so constants flow through phis and loops.
 3. Copy coalescing in out-of-SSA, to fix the `collatz_steps` regression, and an address-expression CSE in the backend (`mul.wide` is repeated for every access to the same element).
 4. Load CSE within a block (invalidated by stores and barriers), `mad.lo.s32` and `[reg+imm]` addressing.

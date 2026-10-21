@@ -108,9 +108,13 @@ Checks per category:
 - Parallel copy sequencing: `{a←b, b←a}` (swap needs a temp), `{a←b, b←c}` (order matters), `{a←a}` (dropped).
 - Constant folding: `i32` wraparound (`2147483647 + 1`), no folding of division by zero, `x * 0` folds for i32 but **not** for f32 (NaN and -0.0), `x + 0.0` doesn't fold for f32 either (`-0.0 + 0.0 = +0.0`).
 
-## 6. Fuzzing (stretch, high value)
+## 6. Fuzzing (implemented)
 
-`tests/fuzz/gen.py` generates random valid kernels: random expressions over a few i32 variables, nested ifs and bounded loops (`for (var k: i32 = 0; k < 8; k += 1)`), with stores of every variable to an output buffer at the end. It must avoid UB: guard divisions (`d != 0 && !(n == -2147483648 && d == -1)`), keep indices in range, and use only `i32` for exact comparison. Then for N seeds: `kitec run -O0` vs `kitec run -O1` must be identical; save any failing program to `tests/exec/fuzz_<seed>.kite`. One evening of this will find bugs that hand-written tests miss, and "I wrote a fuzzer that found N optimizer bugs" is a great resume line if it's true.
+`tests/fuzz/gen.py SEED` prints a random valid kernel (deterministic in the seed): i32 and f32 variables, nested `if`/`else`, bounded `for` and `while` loops with `break`/`continue`, early `return`, short-circuit conditions, casts, loads from read-only arrays, and loads and stores of a per-thread scratch buffer (often at fixed slots, so loads and stores of one address meet). Expressions are reused so that common subexpressions exist. It avoids UB by construction: divisors are `abs(e % 5) + 1` or a constant other than 0 and -1, every index is `((e % N) + N) % N`, loops have at most 11 iterations, and f32 to i32 casts clamp first. The per-thread results are stored to `out`, `fout` and `buf`.
+
+`python3 tests/fuzz/fuzz.py -n 5000 --start 0 -j 8` runs it. For each seed, `kitec run -O0 --verify-each` is the oracle (a run that reports UB is *invalid* and skipped). These must then print byte-identical output, all with `--verify-each`: `-O1`, `--passes=ssa`, `ssa,out-of-ssa`, and each of `licm`, `strength`, `gvn`, `constfold,copyprop,dce` and `simplifycfg` alone between ssa and out-of-ssa (the single-pass runs say which pass is wrong). PTX is also emitted at `-O0` and `-O1`, and assembled with `ptxas` when it is on PATH. A failing program is saved as `tests/exec/fuzz_<seed>.kite`, so it also fails `tests/run_tests.py` until fixed and then stays as a regression test.
+
+How we know the fuzzer can find bugs: with each of these deliberately injected into the compiler it reported failures within a few hundred to 1500 seeds: LICM hoisting loads, GVN numbering loads, folding f32 `x * 0.0` to `0.0`, and folding f32 `x - x` to `0.0`.
 
 ## 7. CI (`.github/workflows/ci.yml`)
 

@@ -42,3 +42,6 @@ jobs:
           else
             echo "tests/run_tests.py not written yet (Milestone 3)"
           fi
+
+      - name: Fuzz (random kernels, -O0 vs -O1 vs per-pass, PTX assembled with ptxas)
+        run: python tests/fuzz/fuzz.py -n 200 -j 4 --save-dir "$RUNNER_TEMP"

@@ -1,0 +1,4 @@
+// ERROR: 3:20: index must be i32
+kernel k(n: i32, p: *f32) {
+    var y: f32 = p[1.0];
+}

@@ -19,6 +19,19 @@ const char* binOpSymbol(BinOp op);
 const char* builtinName(BuiltinVar v);
 const char* intrinsicName(Intrinsic f);
 
+// A resolved declaration. Sema creates one per parameter, local variable (each shadowing
+// declaration gets its own) and shared array; the Kernel owns them and AST nodes point at them.
+struct Symbol {
+    enum class Kind { Local, Param, Shared };
+    Kind kind;
+    std::string name;
+    Type type;
+    int index;  // Param: position in the parameter list; Local/Shared: declaration order in the kernel
+    SourceLoc loc;
+};
+
+bool isReservedName(const std::string& name);  // builtin variables and intrinsics
+
 // ---- Expressions -------------------------------------------------------------------
 
 enum class ExprKind { IntLit, FloatLit, BoolLit, Name, Index, Unary, Binary, Cast, Call, Builtin };
@@ -48,10 +61,12 @@ struct BoolLitExpr : Expr {
 };
 struct NameExpr : Expr {
     std::string name;
+    Symbol* sym = nullptr;  // set by sema
     NameExpr(SourceLoc l, std::string n) : Expr(ExprKind::Name, l), name(std::move(n)) {}
 };
 struct IndexExpr : Expr {
     std::string name;  // the indexed pointer parameter or shared array
+    Symbol* sym = nullptr;  // set by sema
     ExprPtr index;
     IndexExpr(SourceLoc l, std::string n, ExprPtr i)
         : Expr(ExprKind::Index, l), name(std::move(n)), index(std::move(i)) {}
@@ -103,6 +118,8 @@ using StmtPtr = std::unique_ptr<Stmt>;
 
 struct VarDeclStmt : Stmt {
     std::string name;
+    SourceLoc nameLoc;
+    Symbol* sym = nullptr;  // set by sema
     Type type;
     ExprPtr init;
     VarDeclStmt(SourceLoc l, std::string n, Type t, ExprPtr i)
@@ -110,6 +127,8 @@ struct VarDeclStmt : Stmt {
 };
 struct SharedDeclStmt : Stmt {
     std::string name;
+    SourceLoc nameLoc;
+    Symbol* sym = nullptr;  // set by sema
     Type type;       // SharedI32 or SharedF32
     long long size;  // element count; sema checks > 0 and the 48 KiB total (E12)
     SharedDeclStmt(SourceLoc l, std::string n, Type t, long long s)
@@ -157,13 +176,16 @@ struct Param {
     std::string name;
     Type type;
     SourceLoc loc;
+    Symbol* sym = nullptr;  // set by sema
 };
 
 struct Kernel {
     std::string name;
+    SourceLoc nameLoc;
     std::vector<Param> params;
     std::unique_ptr<BlockStmt> body;
     SourceLoc loc;
+    std::vector<std::unique_ptr<Symbol>> symbols;  // owns every Symbol in this kernel (filled by sema)
 };
 
 struct Program {

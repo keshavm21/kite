@@ -1,0 +1,4 @@
+// ERROR: 3:20: invalid operands to '+': i32 and f32
+kernel k(n: i32, p: *f32) {
+    var x: f32 = 1 + 2.0;
+}

@@ -1,0 +1,4 @@
+// ERROR: 3:18: 'p' is an array; index it
+kernel k(n: i32, p: *f32) {
+    var v: f32 = p;
+}

@@ -1,0 +1,7 @@
+Program
+  Kernel int_min
+    Param out: *i32
+    Block
+      Assign out[0] = -2147483648
+      Assign out[1] = (- (neg 2147483647) 1)
+      Assign out[2] = (neg (neg 5))

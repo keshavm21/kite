@@ -1,0 +1,4 @@
+// ERROR: 3:9: redefinition of 'n'
+kernel k(n: i32, p: *f32) {
+    var n: i32 = 1;
+}

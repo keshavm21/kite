@@ -1,0 +1,21 @@
+// Sema must accept: shadowing in nested blocks, the same for-init name in sibling loops,
+// reuse of a name after its block ends, and a for-init that assigns an existing variable.
+kernel scopes(n: i32, out: *i32) {
+    var x: i32 = 1;
+    if (n > 0) {
+        var x: i32 = 2;
+        out[0] = x;
+    }
+    for (var i: i32 = 0; i < 2; i += 1) {
+        var x: f32 = 0.5;
+        out[i] = x as i32;
+    }
+    for (var i: i32 = 0; i < 2; i += 1) {
+        out[i] += x;
+    }
+    var j: i32 = 0;
+    for (j = 0; j < 3; j += 1) {
+        { var x: bool = true; if (x) { break; } }
+    }
+    out[1] = x + j;
+}

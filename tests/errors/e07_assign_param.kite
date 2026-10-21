@@ -1,0 +1,4 @@
+// ERROR: 3:5: cannot assign to parameter 'n'
+kernel k(n: i32, p: *f32) {
+    n = 1;
+}

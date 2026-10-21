@@ -45,7 +45,9 @@ private:
         Kernel k;
         k.loc = cur_.loc;
         expect(Tok::KwKernel, "'kernel'");
-        k.name = expect(Tok::Ident, "kernel name").text;
+        Token nameTok = expect(Tok::Ident, "kernel name");
+        k.name = nameTok.text;
+        k.nameLoc = nameTok.loc;
         expect(Tok::LParen, "'(' after kernel name");
         if (!check(Tok::RParen)) {
             do {
@@ -139,17 +141,19 @@ private:
     std::unique_ptr<VarDeclStmt> parseVarDecl() {
         SourceLoc loc = cur_.loc;
         expect(Tok::KwVar, "'var'");
-        std::string name = expect(Tok::Ident, "variable name").text;
+        Token nameTok = expect(Tok::Ident, "variable name");
         expect(Tok::Colon, "':' after variable name");
         Type t = parseScalarType();
         expect(Tok::Assign, "'=' (variables must be initialized)");
-        return std::make_unique<VarDeclStmt>(loc, std::move(name), t, parseExpr());
+        auto decl = std::make_unique<VarDeclStmt>(loc, nameTok.text, t, parseExpr());
+        decl->nameLoc = nameTok.loc;
+        return decl;
     }
 
     StmtPtr parseSharedDecl() {
         SourceLoc loc = cur_.loc;
         advance();  // 'shared'
-        std::string name = expect(Tok::Ident, "shared array name").text;
+        Token nameTok = expect(Tok::Ident, "shared array name");
         expect(Tok::Colon, "':' after shared array name");
         Type t;
         if (accept(Tok::KwI32)) t = Type::SharedI32;
@@ -159,7 +163,9 @@ private:
         long long size = std::strtoll(expect(Tok::IntLit, "an integer array size").text.c_str(), nullptr, 10);
         expect(Tok::RBracket, "']' after array size");
         expect(Tok::Semi, "';' after statement");
-        return std::make_unique<SharedDeclStmt>(loc, std::move(name), t, size);
+        auto decl = std::make_unique<SharedDeclStmt>(loc, nameTok.text, t, size);
+        decl->nameLoc = nameTok.loc;
+        return decl;
     }
 
     // assign = lvalue ("=" | "+=" | ...) expr, without the trailing ';'.

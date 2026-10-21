@@ -1,0 +1,5 @@
+// ERROR: 4:9: redefinition of 'x'
+kernel k(n: i32, p: *f32) {
+    var x: i32 = 1;
+    var x: i32 = 2;
+}

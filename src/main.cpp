@@ -5,6 +5,7 @@
 #include "frontend/ast_printer.h"
 #include "frontend/lexer.h"
 #include "frontend/parser.h"
+#include "frontend/sema.h"
 #include "support/diagnostics.h"
 #include "support/source.h"
 
@@ -62,6 +63,10 @@ int main(int argc, char** argv) {
 
     auto program = kite::parseSource(src, diag);
     if (!program) return 1;
+
+    kite::Sema sema(diag);
+    sema.check(*program);
+    if (diag.hasErrors()) return 1;
 
     if (emit == "ast") {
         out << kite::dumpProgram(*program);

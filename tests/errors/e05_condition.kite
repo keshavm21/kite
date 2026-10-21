@@ -1,0 +1,4 @@
+// ERROR: 3:9: condition must be bool, found i32
+kernel k(n: i32, p: *f32) {
+    if (n) {}
+}

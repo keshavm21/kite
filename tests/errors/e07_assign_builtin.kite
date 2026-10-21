@@ -1,0 +1,4 @@
+// ERROR: 3:5: cannot assign to builtin 'thread_idx'
+kernel k(n: i32, p: *f32) {
+    thread_idx.x = 1;
+}

@@ -1,0 +1,3 @@
+// ERROR: 3:8: redefinition of 'k'
+kernel k() {}
+kernel k() {}

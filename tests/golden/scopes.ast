@@ -1,0 +1,41 @@
+Program
+  Kernel scopes
+    Param n: i32
+    Param out: *i32
+    Block
+      VarDecl x: i32 = 1
+      If (> n 0)
+        Block
+          VarDecl x: i32 = 2
+          Assign out[0] = x
+      For
+        Init
+          VarDecl i: i32 = 0
+        Cond (< i 2)
+        Step
+          Assign i = (+ i 1)
+        Block
+          VarDecl x: f32 = 0.5
+          Assign out[i] = (as x i32)
+      For
+        Init
+          VarDecl i: i32 = 0
+        Cond (< i 2)
+        Step
+          Assign i = (+ i 1)
+        Block
+          Assign out[i] = (+ out[i] x)
+      VarDecl j: i32 = 0
+      For
+        Init
+          Assign j = 0
+        Cond (< j 3)
+        Step
+          Assign j = (+ j 1)
+        Block
+          Block
+            VarDecl x: bool = true
+            If x
+              Block
+                Break
+      Assign out[1] = (+ x j)

@@ -1,0 +1,4 @@
+// ERROR: 3:18: 'min' expects 2 arguments of the same numeric type
+kernel k(n: i32, p: *f32) {
+    var x: i32 = min(1, 2.0);
+}

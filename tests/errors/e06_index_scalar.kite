@@ -1,0 +1,4 @@
+// ERROR: 3:18: cannot index 'n' of type i32
+kernel k(n: i32, p: *f32) {
+    var y: i32 = n[0];
+}

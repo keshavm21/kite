@@ -1,0 +1,6 @@
+// -2147483648 is legal: sema folds the negation into one negative literal.
+kernel int_min(out: *i32) {
+    out[0] = -2147483648;
+    out[1] = -2147483647 - 1;
+    out[2] = - -5;
+}

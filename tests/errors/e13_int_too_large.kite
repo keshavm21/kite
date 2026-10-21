@@ -1,0 +1,4 @@
+// ERROR: 3:18: integer literal too large for i32
+kernel k(n: i32, p: *f32) {
+    var x: i32 = 2147483648;
+}

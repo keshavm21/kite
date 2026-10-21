@@ -1,0 +1,4 @@
+// ERROR: 3:9: 'min' is a reserved name
+kernel k(n: i32, p: *f32) {
+    var min: i32 = 1;
+}

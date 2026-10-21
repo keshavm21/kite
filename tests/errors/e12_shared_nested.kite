@@ -1,0 +1,6 @@
+// ERROR: 4:9: shared arrays must be declared at kernel top level
+kernel k(n: i32, p: *f32) {
+    if (n < 1) {
+        shared s: f32[16];
+    }
+}

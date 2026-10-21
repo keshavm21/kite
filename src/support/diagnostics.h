@@ -1,6 +1,8 @@
 #pragma once
 #include <iostream>
+#include <set>
 #include <string>
+#include <tuple>
 
 #include "support/source.h"
 
@@ -21,6 +23,7 @@ private:
     std::string filename_;
     std::ostream& out_;
     int errors_ = 0;
+    std::set<std::tuple<int, int, std::string>> seen_;  // identical reports are printed once
 };
 
 }  // namespace kite

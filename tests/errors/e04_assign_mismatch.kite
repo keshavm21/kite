@@ -1,0 +1,4 @@
+// ERROR: 3:18: cannot assign f32 to i32
+kernel k(n: i32, p: *f32) {
+    var x: i32 = 2.5;
+}

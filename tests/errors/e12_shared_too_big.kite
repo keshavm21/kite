@@ -1,0 +1,4 @@
+// ERROR: 3:5: shared memory per kernel exceeds 48 KiB (49152 bytes)
+kernel k(n: i32, p: *f32) {
+    shared s: f32[12289];
+}

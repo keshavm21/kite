@@ -1,0 +1,4 @@
+// ERROR: 3:18: use of undeclared identifier 'foo'
+kernel k(n: i32, p: *f32) {
+    var x: i32 = foo + 1;
+}

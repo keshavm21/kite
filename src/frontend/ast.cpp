@@ -57,6 +57,14 @@ const char* intrinsicName(Intrinsic f) {
     return "?";
 }
 
+bool isReservedName(const std::string& name) {
+    for (BuiltinVar v : {BuiltinVar::ThreadIdx, BuiltinVar::BlockIdx, BuiltinVar::BlockDim, BuiltinVar::GridDim})
+        if (name == builtinName(v)) return true;
+    for (Intrinsic f : {Intrinsic::Sqrt, Intrinsic::Exp, Intrinsic::Abs, Intrinsic::Min, Intrinsic::Max})
+        if (name == intrinsicName(f)) return true;
+    return false;
+}
+
 ExprPtr cloneExpr(const Expr& e) {
     ExprPtr copy;
     switch (e.kind) {
@@ -71,10 +79,12 @@ ExprPtr cloneExpr(const Expr& e) {
             break;
         case ExprKind::Name:
             copy = std::make_unique<NameExpr>(e.loc, static_cast<const NameExpr&>(e).name);
+            static_cast<NameExpr&>(*copy).sym = static_cast<const NameExpr&>(e).sym;
             break;
         case ExprKind::Index: {
             auto& x = static_cast<const IndexExpr&>(e);
             copy = std::make_unique<IndexExpr>(e.loc, x.name, cloneExpr(*x.index));
+            static_cast<IndexExpr&>(*copy).sym = x.sym;
             break;
         }
         case ExprKind::Unary: {

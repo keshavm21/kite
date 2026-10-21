@@ -1,0 +1,4 @@
+// ERROR: 3:5: shared array size must be positive
+kernel k(n: i32, p: *f32) {
+    shared s: f32[0];
+}

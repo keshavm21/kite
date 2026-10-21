@@ -1,0 +1,4 @@
+// ERROR: 3:5: 'break' outside of a loop
+kernel k(n: i32, p: *f32) {
+    break;
+}

@@ -10,4 +10,5 @@ Program
       VarDecl d: i32 = (+ (* (+ n 1) (neg (- n 1))) (max a (min n 3)))
       Assign q[(* n 2)] = (+ q[(* n 2)] a)
       Assign p[0] = (/ p[0] 2.5)
-      Assign n = (% n 4)
+      VarDecl m: i32 = n
+      Assign m = (% m 4)

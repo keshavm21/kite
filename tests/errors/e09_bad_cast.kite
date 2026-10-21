@@ -1,0 +1,4 @@
+// ERROR: 3:21: cannot cast i32 to bool
+kernel k(n: i32, p: *f32) {
+    var b: bool = n as bool;
+}

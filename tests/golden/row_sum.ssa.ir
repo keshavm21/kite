@@ -1,0 +1,36 @@
+kernel @row_sum(i32 %rows.0, i32 %cols.1, ptr.f32 %m.2, ptr.f32 %out.3) {
+entry:
+  %4 = special i32 ctaid.x
+  %5 = special i32 ntid.x
+  %6 = mul i32 %4, %5
+  %7 = special i32 tid.x
+  %8 = add i32 %6, %7
+  %r.9 = copy i32 %8
+  %10 = ge i32 %r.9, %rows.0
+  br %10, if.then.1, if.end.2
+if.then.1:
+  ret
+if.end.2:
+  %acc.19 = copy f32 0.0
+  %c.20 = copy i32 0
+  jmp for.cond.3
+for.cond.3:
+  %acc.21 = phi f32 [%acc.19, if.end.2], [%acc.23, for.step.5]
+  %c.22 = phi i32 [%c.20, if.end.2], [%c.24, for.step.5]
+  %13 = lt i32 %c.22, %cols.1
+  br %13, for.body.4, for.end.6
+for.body.4:
+  %14 = mul i32 %r.9, %cols.1
+  %15 = add i32 %14, %c.22
+  %16 = load f32 global %m.2[%15]
+  %17 = add f32 %acc.21, %16
+  %acc.23 = copy f32 %17
+  jmp for.step.5
+for.step.5:
+  %18 = add i32 %c.22, 1
+  %c.24 = copy i32 %18
+  jmp for.cond.3
+for.end.6:
+  store f32 global %out.3[%r.9], %acc.21
+  ret
+}

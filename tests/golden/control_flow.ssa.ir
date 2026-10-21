@@ -1,0 +1,61 @@
+kernel @control_flow(i32 %n.0, ptr.i32 %out.1) {
+  shared i32 @buf[64]
+entry:
+  %i.13 = copy i32 0
+  jmp while.cond.1
+while.cond.1:
+  %i.14 = phi i32 [%i.13, entry], [%i.16, if.then.4], [%i.15, if.end.6]
+  %3 = lt i32 %i.14, %n.0
+  br %3, while.body.2, while.end.3
+while.body.2:
+  %4 = eq i32 %i.14, 3
+  br %4, if.then.4, if.else.5
+if.then.4:
+  %5 = add i32 %i.14, 1
+  %i.16 = copy i32 %5
+  jmp while.cond.1
+if.else.5:
+  %6 = eq i32 %i.14, 7
+  br %6, if.then.7, if.else.8
+if.then.7:
+  jmp while.end.3
+if.else.8:
+  store i32 shared @buf[%i.14], %i.14
+  jmp if.end.9
+if.end.9:
+  jmp if.end.6
+if.end.6:
+  %7 = add i32 %i.14, 1
+  %i.15 = copy i32 %7
+  jmp while.cond.1
+while.end.3:
+  %k.17 = copy i32 0
+  jmp for.cond.10
+for.cond.10:
+  %k.18 = phi i32 [%k.17, while.end.3], [%k.22, for.step.12]
+  %9 = lt i32 %k.18, 4
+  br %9, for.body.11, for.end.13
+for.body.11:
+  barrier
+  jmp for.step.12
+for.step.12:
+  %10 = add i32 %k.18, 1
+  %k.22 = copy i32 %10
+  jmp for.cond.10
+for.end.13:
+  %i.19 = copy i32 0
+  jmp for.cond.14
+for.cond.14:
+  %i.20 = phi i32 [%i.19, for.end.13], [%i.21, for.step.16]
+  %11 = lt i32 %i.20, 2
+  br %11, for.body.15, for.end.17
+for.body.15:
+  store i32 global %out.1[%i.20], 1
+  jmp for.step.16
+for.step.16:
+  %12 = sub i32 %i.20, 1
+  %i.21 = copy i32 %12
+  jmp for.cond.14
+for.end.17:
+  ret
+}

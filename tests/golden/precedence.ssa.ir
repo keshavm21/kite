@@ -1,0 +1,52 @@
+kernel @precedence(i32 %n.0, ptr.f32 %p.1, ptr.i32 %q.2) {
+entry:
+  %3 = mul i32 2, 3
+  %4 = add i32 1, %3
+  %5 = div i32 4, 2
+  %6 = rem i32 %5, 3
+  %7 = sub i32 %4, %6
+  %a.8 = copy i32 %7
+  %10 = lt i32 %n.0, 1
+  br %10, sc.true.1, or.rhs.4
+or.rhs.4:
+  %11 = gt i32 %n.0, 5
+  br %11, and.rhs.5, sc.false.2
+and.rhs.5:
+  %12 = ne i32 %n.0, 3
+  %13 = eq bool %12, true
+  br %13, sc.true.1, sc.false.2
+sc.true.1:
+  %37 = copy bool true
+  jmp sc.end.3
+sc.false.2:
+  %36 = copy bool false
+  jmp sc.end.3
+sc.end.3:
+  %38 = phi bool [%37, sc.true.1], [%36, sc.false.2]
+  %b.14 = copy bool %38
+  %15 = load f32 global %p.1[0]
+  %16 = neg f32 %15
+  %17 = mul f32 %16, 2.0
+  %18 = add f32 %17, 0.00100000005
+  %c.19 = copy f32 %18
+  %20 = add i32 %n.0, 1
+  %21 = sub i32 %n.0, 1
+  %22 = neg i32 %21
+  %23 = mul i32 %20, %22
+  %24 = min i32 %n.0, 3
+  %25 = max i32 %a.8, %24
+  %26 = add i32 %23, %25
+  %d.27 = copy i32 %26
+  %28 = mul i32 %n.0, 2
+  %29 = mul i32 %n.0, 2
+  %30 = load i32 global %q.2[%29]
+  %31 = add i32 %30, %a.8
+  store i32 global %q.2[%28], %31
+  %32 = load f32 global %p.1[0]
+  %33 = div f32 %32, 2.5
+  store f32 global %p.1[0], %33
+  %m.39 = copy i32 %n.0
+  %35 = rem i32 %m.39, 4
+  %m.40 = copy i32 %35
+  ret
+}

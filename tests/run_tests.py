@@ -9,13 +9,15 @@
 Categories implemented so far:
   golden  tests/golden/NAME.ast  vs  `kitec NAME.kite --emit=ast`
           tests/golden/NAME.ir   vs  `kitec NAME.kite --emit=ir -O0 --verify-each`
+          tests/golden/NAME.ssa.ir vs `kitec NAME.kite --emit=ir --passes=ssa --verify-each`
           tests/golden/NAME.ptx  vs  `kitec NAME.kite --emit=ptx -O0`
           the source is tests/golden/NAME.kite, else tests/exec/NAME.kite, else examples/NAME.kite
   errors  tests/errors/*.kite whose first line is `// ERROR: LINE:COL: message`
           kitec must exit 1 and print `...:LINE:COL: error: message` on stderr
-  exec    every examples/*.kite and tests/exec/*.kite: `kitec run -O0` and `kitec run -O1`
-          (both with --verify-each) must succeed and print byte-for-byte identical output
-  ptx     every source: `kitec --emit=ptx` must assemble with `ptxas -arch=sm_75` when ptxas is on PATH;
+  exec    every examples/*.kite and tests/exec/*.kite: `kitec run -O0`, `-O1` and the SSA stages
+          (`--passes=ssa`, `--passes=ssa,out-of-ssa`), all with --verify-each, must succeed and print
+          byte-for-byte identical output
+  ptx     every source, at -O0 and -O1: `kitec --emit=ptx` must assemble with `ptxas -arch=sm_75` when ptxas is on PATH;
           otherwise tests/ptx_lint.py does a structural check (undeclared registers, bad labels, ...)
 Later milestones add golden .O1.ir / .O1.ptx files.
 """
@@ -36,6 +38,7 @@ SOURCE_DIRS = [ROOT / "tests/golden", ROOT / "tests/exec", ROOT / "examples"]
 GOLDEN_KINDS = {
     "ast": ["--emit=ast"],
     "ir": ["--emit=ir", "-O0", "--verify-each"],
+    "ssa.ir": ["--emit=ir", "--passes=ssa", "--verify-each"],
     "ptx": ["--emit=ptx", "-O0"],
 }
 
@@ -54,7 +57,9 @@ def find_source(name):
 def golden_cases(pattern):
     for ext in GOLDEN_KINDS:
         for expected in sorted((ROOT / "tests/golden").glob(f"*.{ext}")):
-            name = expected.stem
+            name = expected.name[: -(len(ext) + 1)]
+            if ext == "ir" and name.endswith(".ssa"):
+                continue  # NAME.ssa.ir belongs to the "ssa.ir" kind
             src = find_source(name)
             if src and pattern in f"golden/{name}.{ext}":
                 yield f"golden/{name}.{ext}", ext, src, expected
@@ -102,21 +107,23 @@ def exec_sources():
 
 def check_exec(kitec, src):
     results = {}
-    for level in ("-O0", "-O1"):
-        r = run(kitec, "run", src, level, "--verify-each")
+    variants = {"-O0": ["-O0"], "-O1": ["-O1"], "ssa": ["--passes=ssa"], "ssa+out": ["--passes=ssa,out-of-ssa"]}
+    for label, flags in variants.items():
+        r = run(kitec, "run", src, *flags, "--verify-each")
         if r.returncode != 0:
-            return f"`kitec run {level}` exited {r.returncode}:\n{r.stderr}"
+            return f"`kitec run {' '.join(flags)}` exited {r.returncode}:\n{r.stderr}"
         if not r.stdout.strip():
-            return f"`kitec run {level}` printed nothing (does the @spec have a @check line?)"
-        results[level] = r.stdout
-    if results["-O0"] != results["-O1"]:
-        diff = difflib.unified_diff(results["-O0"].splitlines(True), results["-O1"].splitlines(True), "-O0", "-O1")
-        return "".join(diff)
+            return f"`kitec run {' '.join(flags)}` printed nothing (does the @spec have a @check line?)"
+        results[label] = r.stdout
+    for label in list(variants)[1:]:
+        if results[label] != results["-O0"]:
+            diff = difflib.unified_diff(results["-O0"].splitlines(True), results[label].splitlines(True), "-O0", label)
+            return "".join(diff)
     return None
 
 
-def check_ptx(kitec, src):
-    r = run(kitec, src, "--emit=ptx", "-O0")
+def check_ptx(kitec, src, level):
+    r = run(kitec, src, "--emit=ptx", level, "--verify-each")
     if r.returncode != 0:
         return f"kitec exited {r.returncode}:\n{r.stderr}"
     ptxas = shutil.which("ptxas")
@@ -167,9 +174,10 @@ def main():
             report(name, check_exec(kitec, src))
 
     for src in exec_sources() + sorted((ROOT / "tests/golden").glob("*.kite")):
-        name = f"ptx/{src.stem}"
-        if args.k in name:
-            report(name, check_ptx(kitec, src))
+        for level in ("-O0", "-O1"):
+            name = f"ptx{level}/{src.stem}"
+            if args.k in name:
+                report(name, check_ptx(kitec, src, level))
 
     for name, err in failures:
         print(f"\n--- {name} ---\n{err}")

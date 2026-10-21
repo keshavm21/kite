@@ -1,0 +1,42 @@
+kernel @dead_code(ptr.i32 %out.0) {
+entry:
+  %1 = special i32 tid.x
+  %i.2 = copy i32 %1
+  %s.15 = copy i32 0
+  %k.16 = copy i32 0
+  jmp for.cond.1
+for.cond.1:
+  %s.17 = phi i32 [%s.15, entry], [%s.20, for.step.3]
+  %k.18 = phi i32 [%k.16, entry], [%k.21, for.step.3]
+  %5 = lt i32 %k.18, 10
+  br %5, for.body.2, for.end.4
+for.body.2:
+  %6 = eq i32 %k.18, %i.2
+  br %6, if.then.5, if.end.6
+if.then.5:
+  jmp for.step.3
+if.end.6:
+  %8 = gt i32 %k.18, 6
+  br %8, if.then.8, if.end.9
+if.then.8:
+  jmp for.end.4
+if.end.9:
+  %10 = add i32 %s.17, %k.18
+  %s.19 = copy i32 %10
+  jmp for.step.3
+for.step.3:
+  %s.20 = phi i32 [%s.17, if.then.5], [%s.19, if.end.9]
+  %11 = add i32 %k.18, 1
+  %k.21 = copy i32 %11
+  jmp for.cond.1
+for.end.4:
+  %12 = eq i32 %i.2, 3
+  br %12, if.then.11, if.end.12
+if.then.11:
+  %13 = neg i32 1
+  store i32 global %out.0[%i.2], %13
+  ret
+if.end.12:
+  store i32 global %out.0[%i.2], %s.17
+  ret
+}

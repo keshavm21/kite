@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include "analysis/dominators.h"
 #include "ir/printer.h"
 
 namespace kite::ir {
@@ -34,6 +35,7 @@ public:
         }
         for (const auto& bb : fn_.blocks) checkBlock(*bb);
         checkEdges();
+        if (form_ == Form::SSA && errors_.empty()) checkSSA();  // needs sound preds/succs and operand types
         return errors_;
     }
 
@@ -240,6 +242,70 @@ private:
             if (!bb->hasTerminator()) continue;
             for (const BasicBlock* t : bb->terminator().blocks) {
                 if (t == entry) problem("the entry block has a predecessor (" + bb->name() + ")");
+            }
+        }
+    }
+
+    // Invariants 7-9 (10, undef only in phis, is checked for every form). Unreachable blocks are skipped.
+    void checkSSA() {
+        struct Def {
+            const BasicBlock* block = nullptr;
+            int index = -1;  // position in the block; parameters sit before everything in the entry
+        };
+        std::vector<Def> defs(fn_.numRegs());
+        for (int p = 0; p < fn_.numParams; ++p) defs[p] = {fn_.blocks[0].get(), -1};
+        for (const auto& bb : fn_.blocks) {
+            bool sawNonPhi = false;
+            for (size_t k = 0; k < bb->insts.size(); ++k) {
+                const Inst& in = bb->insts[k];
+                int n = static_cast<int>(k);
+                if (in.op == Op::Phi && sawNonPhi) problem(*bb, n, "phi after a non-phi instruction");
+                if (in.op != Op::Phi) sawNonPhi = true;
+                if (in.dst < 0) continue;
+                if (defs[in.dst].block) problem(*bb, n, "register " + fn_.regName(in.dst) + " is defined more than once");
+                defs[in.dst] = {bb.get(), n};
+            }
+        }
+        analysis::DomTree dt(fn_);
+        for (const auto& bbp : fn_.blocks) {
+            const BasicBlock& bb = *bbp;
+            if (!dt.reachable(&bb)) continue;
+            for (size_t k = 0; k < bb.insts.size(); ++k) {
+                const Inst& in = bb.insts[k];
+                int n = static_cast<int>(k);
+                if (in.op == Op::Phi) {
+                    checkPhiEdges(bb, n, in, dt, defs);
+                    continue;
+                }
+                for (const Operand& a : in.args) {
+                    if (!a.isReg()) continue;
+                    const Def& d = defs[a.reg];
+                    bool ok = d.block && (d.block == &bb ? d.index < n : dt.dominates(d.block, &bb));
+                    if (!ok) problem(bb, n, "use of " + fn_.regName(a.reg) + " is not dominated by its definition");
+                }
+            }
+        }
+    }
+
+    template <class Defs>
+    void checkPhiEdges(const BasicBlock& bb, int n, const Inst& phi, const analysis::DomTree& dt, const Defs& defs) {
+        std::vector<const BasicBlock*> preds;  // distinct predecessors
+        for (const BasicBlock* p : bb.preds) {
+            if (std::find(preds.begin(), preds.end(), p) == preds.end()) preds.push_back(p);
+        }
+        std::vector<const BasicBlock*> from(phi.blocks.begin(), phi.blocks.end());
+        std::sort(preds.begin(), preds.end());
+        std::sort(from.begin(), from.end());
+        if (preds != from) {
+            problem(bb, n, "phi must have exactly one entry per predecessor");
+            return;
+        }
+        for (size_t j = 0; j < phi.args.size(); ++j) {
+            if (!phi.args[j].isReg() || !dt.reachable(phi.blocks[j])) continue;
+            const auto& d = defs[phi.args[j].reg];
+            // the value must be available at the end of the predecessor
+            if (!d.block || !dt.dominates(d.block, phi.blocks[j])) {
+                problem(bb, n, "phi operand " + fn_.regName(phi.args[j].reg) + " is not dominated by its definition");
             }
         }
     }

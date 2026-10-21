@@ -1,0 +1,4 @@
+// ERROR: 3:7: expected an assignment operator ('=', '+=', '-=', '*=' or '/=')
+kernel k(n: i32) {
+    n + 1;
+}

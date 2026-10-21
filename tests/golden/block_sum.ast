@@ -1,0 +1,26 @@
+Program
+  Kernel block_sum
+    Param n: i32
+    Param x: *f32
+    Param out: *f32
+    Block
+      Shared buf: f32[256]
+      VarDecl t: i32 = thread_idx.x
+      VarDecl i: i32 = (+ (* block_idx.x block_dim.x) t)
+      VarDecl v: f32 = 0.0
+      If (< i n)
+        Block
+          Assign v = x[i]
+      Assign buf[t] = v
+      Sync
+      VarDecl s: i32 = (/ block_dim.x 2)
+      While (> s 0)
+        Block
+          If (< t s)
+            Block
+              Assign buf[t] = (+ buf[t] buf[(+ t s)])
+          Sync
+          Assign s = (/ s 2)
+      If (== t 0)
+        Block
+          Assign out[block_idx.x] = buf[0]

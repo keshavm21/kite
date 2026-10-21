@@ -1,0 +1,23 @@
+// Every statement form: if/else-if/else, while, for (var and assign init), break, continue, return, sync, shared, nested block.
+kernel control_flow(n: i32, out: *i32) {
+    shared buf: i32[64];
+    var i: i32 = 0;
+    while (i < n) {
+        if (i == 3) {
+            i += 1;
+            continue;
+        } else if (i == 7) {
+            break;
+        } else {
+            buf[i] = i;
+        }
+        i += 1;
+    }
+    for (var k: i32 = 0; k < 4; k += 1) {
+        sync();
+    }
+    for (i = 0; i < 2; i -= 1) {
+        { out[i] = 1; }
+    }
+    return;
+}

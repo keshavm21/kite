@@ -1,0 +1,4 @@
+// ERROR: 3:20: unexpected character '@'
+kernel k() {
+    var x: i32 = 1 @ 2;
+}

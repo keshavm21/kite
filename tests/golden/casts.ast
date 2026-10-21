@@ -1,0 +1,16 @@
+Program
+  Kernel casts
+    Param n: i32
+    Param x: *f32
+    Param q: *i32
+    Param y: *f32
+    Block
+      VarDecl i: i32 = thread_idx.x
+      If (not (< i n))
+        Block
+          Return
+      VarDecl v: f32 = (* x[i] 10.0)
+      VarDecl t: i32 = (as v i32)
+      VarDecl flag: bool = (|| (< t 0) (> t 5))
+      Assign q[i] = (+ (* t 2) (as flag i32))
+      Assign y[i] = (+ (sqrt (abs v)) (as (min t 3) f32))

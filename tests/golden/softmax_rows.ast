@@ -1,0 +1,40 @@
+Program
+  Kernel softmax_rows
+    Param rows: i32
+    Param cols: i32
+    Param x: *f32
+    Param y: *f32
+    Block
+      VarDecl r: i32 = (+ (* block_idx.x block_dim.x) thread_idx.x)
+      If (>= r rows)
+        Block
+          Return
+      VarDecl base: i32 = (* r cols)
+      VarDecl m: f32 = x[base]
+      For
+        Init
+          VarDecl c: i32 = 1
+        Cond (< c cols)
+        Step
+          Assign c = (+ c 1)
+        Block
+          Assign m = (max m x[(+ base c)])
+      VarDecl sum: f32 = 0.0
+      For
+        Init
+          VarDecl c: i32 = 0
+        Cond (< c cols)
+        Step
+          Assign c = (+ c 1)
+        Block
+          VarDecl e: f32 = (exp (- x[(+ base c)] m))
+          Assign y[(+ base c)] = e
+          Assign sum = (+ sum e)
+      For
+        Init
+          VarDecl c: i32 = 0
+        Cond (< c cols)
+        Step
+          Assign c = (+ c 1)
+        Block
+          Assign y[(+ base c)] = (/ y[(+ base c)] sum)

@@ -1,0 +1,39 @@
+Program
+  Kernel control_flow
+    Param n: i32
+    Param out: *i32
+    Block
+      Shared buf: i32[64]
+      VarDecl i: i32 = 0
+      While (< i n)
+        Block
+          If (== i 3)
+            Block
+              Assign i = (+ i 1)
+              Continue
+            Else
+              If (== i 7)
+                Block
+                  Break
+                Else
+                  Block
+                    Assign buf[i] = i
+          Assign i = (+ i 1)
+      For
+        Init
+          VarDecl k: i32 = 0
+        Cond (< k 4)
+        Step
+          Assign k = (+ k 1)
+        Block
+          Sync
+      For
+        Init
+          Assign i = 0
+        Cond (< i 2)
+        Step
+          Assign i = (- i 1)
+        Block
+          Block
+            Assign out[i] = 1
+      Return

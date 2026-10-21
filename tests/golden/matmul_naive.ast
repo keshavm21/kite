@@ -1,0 +1,23 @@
+Program
+  Kernel matmul_naive
+    Param m: i32
+    Param n: i32
+    Param k: i32
+    Param a: *f32
+    Param b: *f32
+    Param c: *f32
+    Block
+      VarDecl row: i32 = (+ (* block_idx.y block_dim.y) thread_idx.y)
+      VarDecl col: i32 = (+ (* block_idx.x block_dim.x) thread_idx.x)
+      If (&& (< row m) (< col n))
+        Block
+          VarDecl acc: f32 = 0.0
+          For
+            Init
+              VarDecl i: i32 = 0
+            Cond (< i k)
+            Step
+              Assign i = (+ i 1)
+            Block
+              Assign acc = (+ acc (* a[(+ (* row k) i)] b[(+ (* i n) col)]))
+          Assign c[(+ (* row n) col)] = acc

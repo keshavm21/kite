@@ -1,0 +1,11 @@
+Program
+  Kernel vector_add
+    Param n: i32
+    Param a: *f32
+    Param b: *f32
+    Param c: *f32
+    Block
+      VarDecl i: i32 = (+ (* block_idx.x block_dim.x) thread_idx.x)
+      If (< i n)
+        Block
+          Assign c[i] = (+ a[i] b[i])

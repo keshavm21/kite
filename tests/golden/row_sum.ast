@@ -1,0 +1,21 @@
+Program
+  Kernel row_sum
+    Param rows: i32
+    Param cols: i32
+    Param m: *f32
+    Param out: *f32
+    Block
+      VarDecl r: i32 = (+ (* block_idx.x block_dim.x) thread_idx.x)
+      If (>= r rows)
+        Block
+          Return
+      VarDecl acc: f32 = 0.0
+      For
+        Init
+          VarDecl c: i32 = 0
+        Cond (< c cols)
+        Step
+          Assign c = (+ c 1)
+        Block
+          Assign acc = (+ acc m[(+ (* r cols) c)])
+      Assign out[r] = acc

@@ -1,0 +1,6 @@
+// ERROR: 5:3: expected ';' after statement
+kernel k(n: i32) {
+    var x: i32 = n;
+    var y: i32 = x
+  x = 1;
+}

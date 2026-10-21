@@ -1,0 +1,31 @@
+Program
+  Kernel collatz_steps
+    Param n: i32
+    Param start: *i32
+    Param steps: *i32
+    Block
+      VarDecl i: i32 = (+ (* block_idx.x block_dim.x) thread_idx.x)
+      If (>= i n)
+        Block
+          Return
+      VarDecl v: i32 = start[i]
+      If (< v 1)
+        Block
+          Assign v = (+ (neg v) 1)
+      VarDecl count: i32 = 0
+      While true
+        Block
+          If (== v 1)
+            Block
+              Break
+          If (== (% v 2) 0)
+            Block
+              Assign v = (/ v 2)
+            Else
+              Block
+                Assign v = (+ (* 3 v) 1)
+          Assign count = (+ count 1)
+          If (>= count 1000)
+            Block
+              Break
+      Assign steps[i] = count

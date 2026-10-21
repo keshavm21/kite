@@ -1,0 +1,50 @@
+Program
+  Kernel matmul_tiled
+    Param m: i32
+    Param n: i32
+    Param k: i32
+    Param a: *f32
+    Param b: *f32
+    Param c: *f32
+    Block
+      Shared ta: f32[256]
+      Shared tb: f32[256]
+      VarDecl tx: i32 = thread_idx.x
+      VarDecl ty: i32 = thread_idx.y
+      VarDecl row: i32 = (+ (* block_idx.y 16) ty)
+      VarDecl col: i32 = (+ (* block_idx.x 16) tx)
+      VarDecl acc: f32 = 0.0
+      For
+        Init
+          VarDecl t: i32 = 0
+        Cond (< t (/ (+ k 15) 16))
+        Step
+          Assign t = (+ t 1)
+        Block
+          VarDecl ac: i32 = (+ (* t 16) tx)
+          VarDecl br: i32 = (+ (* t 16) ty)
+          If (&& (< row m) (< ac k))
+            Block
+              Assign ta[(+ (* ty 16) tx)] = a[(+ (* row k) ac)]
+            Else
+              Block
+                Assign ta[(+ (* ty 16) tx)] = 0.0
+          If (&& (< br k) (< col n))
+            Block
+              Assign tb[(+ (* ty 16) tx)] = b[(+ (* br n) col)]
+            Else
+              Block
+                Assign tb[(+ (* ty 16) tx)] = 0.0
+          Sync
+          For
+            Init
+              VarDecl i: i32 = 0
+            Cond (< i 16)
+            Step
+              Assign i = (+ i 1)
+            Block
+              Assign acc = (+ acc (* ta[(+ (* ty 16) i)] tb[(+ (* i 16) tx)]))
+          Sync
+      If (&& (< row m) (< col n))
+        Block
+          Assign c[(+ (* row n) col)] = acc

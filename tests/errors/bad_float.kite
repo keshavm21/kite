@@ -1,0 +1,4 @@
+// ERROR: 3:18: malformed float literal: digits required after '.'
+kernel k(x: *f32) {
+    var v: f32 = 1.;
+}

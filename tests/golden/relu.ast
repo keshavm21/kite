@@ -1,0 +1,10 @@
+Program
+  Kernel relu
+    Param n: i32
+    Param x: *f32
+    Param y: *f32
+    Block
+      VarDecl i: i32 = (+ (* block_idx.x block_dim.x) thread_idx.x)
+      If (< i n)
+        Block
+          Assign y[i] = (max x[i] 0.0)

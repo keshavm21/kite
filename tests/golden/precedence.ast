@@ -1,0 +1,13 @@
+Program
+  Kernel precedence
+    Param n: i32
+    Param p: *f32
+    Param q: *i32
+    Block
+      VarDecl a: i32 = (- (+ 1 (* 2 3)) (% (/ 4 2) 3))
+      VarDecl b: bool = (|| (< n 1) (&& (> n 5) (== (!= n 3) true)))
+      VarDecl c: f32 = (+ (* (as (neg p[0]) f32) 2.0) 0.00100000005)
+      VarDecl d: i32 = (+ (* (+ n 1) (neg (- n 1))) (max a (min n 3)))
+      Assign q[(* n 2)] = (+ q[(* n 2)] a)
+      Assign p[0] = (/ p[0] 2.5)
+      Assign n = (% n 4)

@@ -1,0 +1,5 @@
+// ERROR: 6:1: expected '}' before end of file
+kernel k(n: i32) {
+    if (n < 1) {
+        return;
+    }

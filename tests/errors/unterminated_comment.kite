@@ -1,0 +1,4 @@
+// ERROR: 3:5: unterminated block comment
+kernel k() {
+    /* never closed
+}

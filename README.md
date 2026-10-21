@@ -21,7 +21,7 @@ source ─► lexer ─► parser ─► type checker ─► CFG IR ─► SSA �
                                                └──────► interpreter (correctness oracle) ┘ differential tests
 ```
 
-> **Status:** Milestones 0-8 are implemented. The `-O0` and `-O1` pipelines match the IR interpreter on every example and test (byte for byte), and the examples matched a Tesla T4 through `-O1` before LICM and strength reduction were added (checked on Colab with `gpu/check_all.sh`; rerun it for the final `-O1`). Benchmarks: see [Results](#results).
+> **Status:** Milestones 0-8 are implemented. The `-O0` and `-O1` pipelines match the IR interpreter on every example and test (byte for byte), and all 10 examples at the final `-O1` (with LICM and strength reduction) match the interpreter on a Tesla T4 (`gpu/check_all.sh` on Colab). Benchmarks: see [Results](#results).
 
 ## Quick start (30 seconds)
 
@@ -152,25 +152,41 @@ results/       generated benchmark and optimization tables
 
 ### What the optimizer does to the code (`results/opt_stats.md`, `python3 scripts/opt_stats.py`)
 
-| example | IR -O0 | IR -O1 | change | PTX -O0 | PTX -O1 | change |
-|---|---:|---:|---:|---:|---:|---:|
-| block_sum | 40 | 37 | -8% | 54 | 51 | -6% |
-| casts | 30 | 26 | -13% | 42 | 38 | -10% |
-| collatz_steps | 41 | 44 | +7% | 46 | 50 | +9% |
-| matmul_naive | 39 | 36 | -8% | 51 | 49 | -4% |
-| matmul_tiled | 87 | 71 | -18% | 111 | 97 | -13% |
-| relu | 13 | 12 | -8% | 21 | 20 | -5% |
-| row_sum | 25 | 23 | -8% | 33 | 32 | -3% |
-| saxpy | 15 | 14 | -7% | 26 | 25 | -4% |
-| softmax_rows | 57 | 49 | -14% | 70 | 65 | -7% |
-| vector_add | 14 | 13 | -7% | 26 | 25 | -4% |
-| **total** | 361 | 325 | -10% | 480 | 452 | -6% |
+| example | IR -O0 | IR -O1 | change | PTX -O0 | PTX -O1 | change | regs -O0 | regs -O1 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| block_sum | 40 | 37 | -8% | 54 | 51 | -6% | 12 | 13 |
+| casts | 30 | 26 | -13% | 42 | 38 | -10% | 13 | 13 |
+| collatz_steps | 41 | 44 | +7% | 46 | 50 | +9% | 11 | 12 |
+| matmul_naive | 39 | 36 | -8% | 51 | 49 | -4% | 14 | 14 |
+| matmul_tiled | 87 | 71 | -18% | 111 | 97 | -13% | 16 | 17 |
+| relu | 13 | 12 | -8% | 21 | 20 | -5% | 10 | 10 |
+| row_sum | 25 | 23 | -8% | 33 | 32 | -3% | 12 | 12 |
+| saxpy | 15 | 14 | -7% | 26 | 25 | -4% | 10 | 10 |
+| softmax_rows | 57 | 49 | -14% | 70 | 65 | -7% | 17 | 17 |
+| vector_add | 14 | 13 | -7% | 26 | 25 | -4% | 12 | 12 |
+| **total** | 361 | 325 | -10% | 480 | 452 | -6% | | |
 
-Instruction counts, `-O0` vs `-O1`. `collatz_steps` gets *bigger* at `-O1` (+7% IR, +9% PTX): its loop-carried values become phis, and out-of-SSA turns each phi back into copies in the predecessors, plus split blocks. There is no copy coalescing yet, so for tiny loops the SSA round trip costs more than the passes save. LICM does not change instruction counts by itself (it moves code); the matmul_tiled gain (-8% to -18% IR) comes from the GVN run after it, which merges the identical address computations LICM gathers into one preheader.
+Instruction counts and `ptxas` registers per thread (from Colab), `-O0` vs `-O1`. Fewer instructions did not lower register use: `-O1` needs one more register in `block_sum`, `collatz_steps` and `matmul_tiled`, and is equal elsewhere. `collatz_steps` gets *bigger* at `-O1` (+7% IR, +9% PTX): its loop-carried values become phis, and out-of-SSA turns each phi back into copies in the predecessors, plus split blocks. There is no copy coalescing yet, so for tiny loops the SSA round trip costs more than the passes save. LICM does not change instruction counts by itself (it moves code); the matmul_tiled gain (-8% to -18% IR) comes from the GVN run after it, which merges the identical address computations LICM gathers into one preheader.
 
-### What it does to the GPU (`results/bench_T4.md`, `python3 gpu/bench.py` on Colab)
+### What it does to the GPU (`results/bench_T4.md`, `python3 gpu/bench.py` on Colab, Tesla T4)
 
-Kite `-O0`, Kite `-O1`, the same kernel in CUDA C through NVRTC, and CuPy/cuBLAS, with GB/s or GFLOP/s, ptxas registers and SASS instruction counts. ptxas is an optimizer too, so a smaller `-O1` PTX may not run faster; the benchmark file reports whatever was measured. If `results/bench_T4.md` is missing, the benchmark has not been run yet.
+Median of 20 launches; saxpy/relu n = 2^24, softmax 8192 x 1024, matmul 1024^3. Every variant matched the library result. CUDA C is the same kernel through NVRTC with `--fmad=false`.
+
+| kernel | Kite -O0 | Kite -O1 | CUDA C (NVRTC) | library |
+|---|---:|---:|---:|---:|
+| saxpy | 0.768 ms (262 GB/s) | 0.768 ms (262 GB/s) | 0.768 ms (262 GB/s) | CuPy 1.350 ms |
+| relu | 0.571 ms (235 GB/s) | 0.574 ms (234 GB/s) | 0.574 ms (234 GB/s) | CuPy 0.625 ms |
+| softmax_rows | 4.17 ms | 3.22 ms | 3.07 ms | CuPy 1.31 ms |
+| matmul_naive | 8.69 ms (247 GFLOP/s) | 7.61 ms (282 GFLOP/s) | 4.39 ms (489 GFLOP/s) | cuBLAS 0.39 ms (5507 GFLOP/s) |
+| matmul_tiled | 7.05 ms (305 GFLOP/s) | 6.22 ms (345 GFLOP/s) | 2.82 ms (762 GFLOP/s) | cuBLAS 0.45 ms (4806 GFLOP/s) |
+
+What the numbers say:
+
+- **Memory-bound kernels (saxpy, relu): Kite equals NVRTC.** Same time, same registers, same SASS length (16 instructions), at 73-82% of the T4's 320 GB/s. `-O1` changes nothing here, as `PTX_BACKEND.md` section 11 predicts: the PTX is smaller, but ptxas already produced the same SASS from `-O0`, and DRAM bandwidth is the limit.
+- **softmax_rows: `-O1` is 23% faster than `-O0` with identical register count (17) and SASS length (176).** I have not found out why. The instruction *count* is the same, so the difference is in which instructions or in their order and addressing. Diffing `cuobjdump -sass` of the two cubins would show it. All variants are slow in absolute terms (5-7% of peak) because the kernel gives one thread a whole row, so neighbouring threads read addresses `cols` floats apart and nothing coalesces. That is a property of the kernel, not the compiler. CuPy's multi-kernel version is 2.5x faster.
+- **matmul: `-O1` is 12% faster than `-O0` for both kernels, and Kite is 1.6x (naive) to 2.2x (tiled) slower than NVRTC.** NVRTC's SASS for the naive kernel is much larger (232 vs 40 instructions) and uses 52 registers against 14, which looks like loop unrolling, something Kite does not do. I did not inspect the SASS to confirm that.
+- **Tiling helps less than expected.** Kite's tiled kernel is only 12% faster than its naive one at `-O1` (6.2 vs 7.6 ms). NVRTC's tiled kernel is 1.6x faster than its naive one. Both Kite kernels are at about 4% of peak, and cuBLAS reaches 59-68%.
+- **Registers:** `-O1` uses one more register than `-O0` in `matmul_tiled` (16 to 17), and the same elsewhere in this table.
 
 ## Testing
 

@@ -1,0 +1,23 @@
+// One thread per row of a rows x cols matrix. The loop gives SSA two phis
+// (acc, c) and `r * cols` is loop-invariant, so LICM can hoist it.
+// docs/IR.md and tests/ptx_reference/row_sum_O1.ptx walk through this kernel.
+// @kernel row_sum
+// @grid 1
+// @block 64
+// @arg rows i32 50
+// @arg cols i32 37
+// @arg m f32[1850] rand(4)
+// @arg out f32[50] zeros
+// @check out
+
+kernel row_sum(rows: i32, cols: i32, m: *f32, out: *f32) {
+    var r: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (r >= rows) {
+        return;
+    }
+    var acc: f32 = 0.0;
+    for (var c: i32 = 0; c < cols; c += 1) {
+        acc += m[r * cols + c];
+    }
+    out[r] = acc;
+}

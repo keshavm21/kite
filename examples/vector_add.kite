@@ -1,0 +1,16 @@
+// c[i] = a[i] + b[i]. The smallest useful kernel; your first end-to-end test.
+// @kernel vector_add
+// @grid 4
+// @block 256
+// @arg n i32 1000
+// @arg a f32[1000] rand(1)
+// @arg b f32[1000] rand(2)
+// @arg c f32[1000] zeros
+// @check c
+
+kernel vector_add(n: i32, a: *f32, b: *f32, c: *f32) {
+    var i: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (i < n) {
+        c[i] = a[i] + b[i];
+    }
+}

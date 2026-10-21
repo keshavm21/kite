@@ -1,0 +1,45 @@
+// Shared-memory tiled matmul (16 x 16 tiles). Block must be 16 x 16.
+// Each tile of A and B is loaded from global memory once per block instead of
+// once per thread. Its result is bit-identical to matmul_naive when k % 16 == 0.
+// @kernel matmul_tiled
+// @grid 4 4
+// @block 16 16
+// @arg m i32 64
+// @arg n i32 64
+// @arg k i32 64
+// @arg a f32[4096] rand(8)
+// @arg b f32[4096] rand(9)
+// @arg c f32[4096] zeros
+// @check c
+
+kernel matmul_tiled(m: i32, n: i32, k: i32, a: *f32, b: *f32, c: *f32) {
+    shared ta: f32[256];
+    shared tb: f32[256];
+    var tx: i32 = thread_idx.x;
+    var ty: i32 = thread_idx.y;
+    var row: i32 = block_idx.y * 16 + ty;
+    var col: i32 = block_idx.x * 16 + tx;
+    var acc: f32 = 0.0;
+    for (var t: i32 = 0; t < (k + 15) / 16; t += 1) {
+        var ac: i32 = t * 16 + tx;
+        var br: i32 = t * 16 + ty;
+        if (row < m && ac < k) {
+            ta[ty * 16 + tx] = a[row * k + ac];
+        } else {
+            ta[ty * 16 + tx] = 0.0;
+        }
+        if (br < k && col < n) {
+            tb[ty * 16 + tx] = b[br * n + col];
+        } else {
+            tb[ty * 16 + tx] = 0.0;
+        }
+        sync();
+        for (var i: i32 = 0; i < 16; i += 1) {
+            acc += ta[ty * 16 + i] * tb[i * 16 + tx];
+        }
+        sync();
+    }
+    if (row < m && col < n) {
+        c[row * n + col] = acc;
+    }
+}

@@ -1,0 +1,50 @@
+//
+// hello.ptx -- hand-written SAXPY:  y[i] = a * x[i] + y[i]
+//
+// Milestone 0: run this on a GPU (see gpu/run_hello.py) before writing any
+// compiler code. If this file runs, your whole toolchain (PTX -> driver JIT ->
+// GPU) works, and you know exactly what kitec has to produce.
+//
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry saxpy(
+    .param .u32 saxpy_param_0,      // n
+    .param .f32 saxpy_param_1,      // a
+    .param .u64 saxpy_param_2,      // x  (generic pointer)
+    .param .u64 saxpy_param_3       // y  (generic pointer)
+)
+{
+    .reg .pred  %p<1>;
+    .reg .b32   %r<5>;
+    .reg .f32   %f<5>;
+    .reg .b64   %rd<7>;
+
+    ld.param.u32        %r0, [saxpy_param_0];
+    ld.param.f32        %f0, [saxpy_param_1];
+    ld.param.u64        %rd0, [saxpy_param_2];
+    ld.param.u64        %rd1, [saxpy_param_3];
+    cvta.to.global.u64  %rd0, %rd0;             // generic -> global address
+    cvta.to.global.u64  %rd1, %rd1;
+
+    mov.u32             %r1, %ctaid.x;          // blockIdx.x
+    mov.u32             %r2, %ntid.x;           // blockDim.x
+    mov.u32             %r3, %tid.x;            // threadIdx.x
+    mad.lo.s32          %r4, %r1, %r2, %r3;     // i = blockIdx.x*blockDim.x + threadIdx.x
+
+    setp.ge.s32         %p0, %r4, %r0;          // if (i >= n) skip
+    @%p0 bra            $L_done;
+
+    mul.wide.s32        %rd2, %r4, 4;           // byte offset = (s64)i * 4
+    add.s64             %rd3, %rd0, %rd2;       // &x[i]
+    add.s64             %rd4, %rd1, %rd2;       // &y[i]
+    ld.global.f32       %f1, [%rd3];
+    ld.global.f32       %f2, [%rd4];
+    mul.rn.f32          %f3, %f0, %f1;          // .rn: no FMA contraction
+    add.rn.f32          %f4, %f3, %f2;
+    st.global.f32       [%rd4], %f4;
+
+$L_done:
+    ret;
+}

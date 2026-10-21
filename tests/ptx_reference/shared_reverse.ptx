@@ -1,0 +1,46 @@
+// Shared memory + barrier lowering reference: reverse each block's slice.
+//   shared buf: f32[256];  buf[t] = x[i];  sync();  out[i] = buf[ntid.x - 1 - t];
+.version 7.0
+.target sm_75
+.address_size 64
+
+.shared .align 4 .f32 block_reverse_buf[256];   // module scope, name = kernel_var
+
+.visible .entry block_reverse(
+    .param .u64 block_reverse_param_0,
+    .param .u64 block_reverse_param_1
+)
+{
+    .reg .b32   %r<16>;
+    .reg .f32   %f<4>;
+    .reg .b64   %rd<12>;
+
+    ld.param.u64        %rd0, [block_reverse_param_0];
+    cvta.to.global.u64  %rd0, %rd0;
+    ld.param.u64        %rd1, [block_reverse_param_1];
+    cvta.to.global.u64  %rd1, %rd1;
+
+    mov.u32             %r2, %tid.x;
+    mov.u32             %r3, %ctaid.x;
+    mov.u32             %r4, %ntid.x;
+    mad.lo.s32          %r5, %r3, %r4, %r2;
+
+    mul.wide.s32        %rd6, %r5, 4;
+    add.s64             %rd7, %rd0, %rd6;
+    ld.global.f32       %f1, [%rd7];
+    mov.u32             %r8, block_reverse_buf; // 32-bit shared-window address
+    shl.b32             %r9, %r2, 2;            // t * 4
+    add.s32             %r10, %r8, %r9;
+    st.shared.f32       [%r10], %f1;
+
+    bar.sync            0;
+
+    sub.s32             %r11, %r4, 1;
+    sub.s32             %r12, %r11, %r2;
+    shl.b32             %r13, %r12, 2;
+    add.s32             %r14, %r8, %r13;
+    ld.shared.f32       %f2, [%r14];
+    add.s64             %rd9, %rd1, %rd6;
+    st.global.f32       [%rd9], %f2;
+    ret;
+}

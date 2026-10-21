@@ -1,0 +1,36 @@
+// Integer-heavy control flow: while(true), break, %, /, nested ifs.
+// Good for differential testing of the optimizer (exact integer results).
+// @kernel collatz_steps
+// @grid 2
+// @block 128
+// @arg n i32 200
+// @arg start i32[200] rand(6)
+// @arg steps i32[200] zeros
+// @check steps
+
+kernel collatz_steps(n: i32, start: *i32, steps: *i32) {
+    var i: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (i >= n) {
+        return;
+    }
+    var v: i32 = start[i];
+    if (v < 1) {
+        v = -v + 1;
+    }
+    var count: i32 = 0;
+    while (true) {
+        if (v == 1) {
+            break;
+        }
+        if (v % 2 == 0) {
+            v = v / 2;
+        } else {
+            v = 3 * v + 1;
+        }
+        count += 1;
+        if (count >= 1000) {
+            break;
+        }
+    }
+    steps[i] = count;
+}

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (Debug + sanitizers)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DKITE_SANITIZE=ON
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install numpy and ptxas (no GPU needed)
+        run: |
+          pip install numpy nvidia-cuda-nvcc-cu12
+          python -c "import nvidia.cuda_nvcc, os; print(os.path.join(list(nvidia.cuda_nvcc.__path__)[0], 'bin'))" >> "$GITHUB_PATH"
+
+      - name: Assemble reference PTX
+        run: |
+          ptxas --version
+          for f in gpu/hello.ptx tests/ptx_reference/*.ptx; do
+            echo "ptxas $f"; ptxas -arch=sm_75 "$f" -o /dev/null
+          done
+
+      - name: Compiler tests (golden, errors, differential)
+        run: |
+          if [ -f tests/run_tests.py ]; then
+            python tests/run_tests.py --kitec build/kitec
+          else
+            echo "tests/run_tests.py not written yet (Milestone 3)"
+          fi

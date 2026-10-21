@@ -1,0 +1,16 @@
+// y = a*x + y  (BLAS level-1). Compare the PTX kitec emits with gpu/hello.ptx.
+// @kernel saxpy
+// @grid 4
+// @block 256
+// @arg n i32 1000
+// @arg a f32 2.5
+// @arg x f32[1000] rand(1)
+// @arg y f32[1000] rand(2)
+// @check y
+
+kernel saxpy(n: i32, a: f32, x: *f32, y: *f32) {
+    var i: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (i < n) {
+        y[i] = a * x[i] + y[i];
+    }
+}

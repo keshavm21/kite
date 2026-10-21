@@ -1,0 +1,33 @@
+// Tree reduction in shared memory: each block writes the sum of its slice.
+// Needs shared arrays and sync() (Milestone 7). block_dim.x must be a power of
+// two and at most 256.
+// @kernel block_sum
+// @grid 4
+// @block 256
+// @arg n i32 1000
+// @arg x f32[1000] rand(7)
+// @arg out f32[4] zeros
+// @check out
+
+kernel block_sum(n: i32, x: *f32, out: *f32) {
+    shared buf: f32[256];
+    var t: i32 = thread_idx.x;
+    var i: i32 = block_idx.x * block_dim.x + t;
+    var v: f32 = 0.0;
+    if (i < n) {
+        v = x[i];
+    }
+    buf[t] = v;
+    sync();
+    var s: i32 = block_dim.x / 2;
+    while (s > 0) {
+        if (t < s) {
+            buf[t] = buf[t] + buf[t + s];
+        }
+        sync();
+        s = s / 2;
+    }
+    if (t == 0) {
+        out[block_idx.x] = buf[0];
+    }
+}

@@ -1,0 +1,59 @@
+// Expected shape of `kitec -O1 examples/row_sum.kite` (see docs/PTX_BACKEND.md).
+// Register names are <class prefix><IR register id>; backend address temps use
+// ids after the last IR id. Ids match docs/IR.md section 8 (illustrative). Loop-invariant r*cols was hoisted by LICM (%r14).
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry row_sum(
+    .param .u32 row_sum_param_0,
+    .param .u32 row_sum_param_1,
+    .param .u64 row_sum_param_2,
+    .param .u64 row_sum_param_3
+)
+{
+    .reg .pred  %p<14>;
+    .reg .b32   %r<21>;
+    .reg .f32   %f<20>;
+    .reg .b64   %rd<25>;
+
+    ld.param.u32        %r0, [row_sum_param_0];
+    ld.param.u32        %r1, [row_sum_param_1];
+    ld.param.u64        %rd2, [row_sum_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+    ld.param.u64        %rd3, [row_sum_param_3];
+    cvta.to.global.u64  %rd3, %rd3;
+
+$L_entry:
+    mov.u32             %r4, %ctaid.x;
+    mov.u32             %r5, %ntid.x;
+    mul.lo.s32          %r6, %r4, %r5;
+    mov.u32             %r7, %tid.x;
+    add.s32             %r8, %r6, %r7;
+    setp.ge.s32         %p10, %r8, %r0;
+    @!%p10 bra          $L_if_end_2;
+$L_if_then_1:
+    ret;
+$L_if_end_2:
+    mul.lo.s32          %r14, %r8, %r1;         // hoisted out of the loop
+    mov.f32             %f19, 0f00000000;       // phi copy: acc = 0.0
+    mov.u32             %r20, 0;                // phi copy: c = 0
+$L_for_cond_3:
+    setp.lt.s32         %p13, %r20, %r1;
+    @!%p13 bra          $L_for_end_6;
+$L_for_body_4:
+    add.s32             %r15, %r14, %r20;
+    mul.wide.s32        %rd21, %r15, 4;
+    add.s64             %rd22, %rd2, %rd21;
+    ld.global.f32       %f16, [%rd22];
+    add.rn.f32          %f17, %f19, %f16;
+    add.s32             %r18, %r20, 1;
+    mov.f32             %f19, %f17;             // phi copy: acc = %17
+    mov.u32             %r20, %r18;             // phi copy: c = %18
+    bra.uni             $L_for_cond_3;
+$L_for_end_6:
+    mul.wide.s32        %rd23, %r8, 4;
+    add.s64             %rd24, %rd3, %rd23;
+    st.global.f32       [%rd24], %f19;
+    ret;
+}

@@ -1,0 +1,15 @@
+// The ML activation function: y = max(x, 0).
+// @kernel relu
+// @grid 4
+// @block 256
+// @arg n i32 1000
+// @arg x f32[1000] rand(3)
+// @arg y f32[1000] zeros
+// @check y
+
+kernel relu(n: i32, x: *f32, y: *f32) {
+    var i: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (i < n) {
+        y[i] = max(x[i], 0.0);
+    }
+}

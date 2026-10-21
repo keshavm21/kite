@@ -1,0 +1,51 @@
+// Expected shape of `kitec -O0 examples/saxpy.kite` (docs/PTX_BACKEND.md section 9).
+// Register = <class prefix><IR register id>: params %r0 %f1 %rd2 %rd3, then IR ids
+// 4..14 from docs/IR.md section 7; backend address temps continue at 15.
+.version 7.0
+.target sm_75
+.address_size 64
+
+.visible .entry saxpy(
+    .param .u32 saxpy_param_0,
+    .param .f32 saxpy_param_1,
+    .param .u64 saxpy_param_2,
+    .param .u64 saxpy_param_3
+)
+{
+    .reg .pred  %p<11>;
+    .reg .b32   %r<10>;
+    .reg .f32   %f<15>;
+    .reg .b64   %rd<21>;
+
+    ld.param.u32        %r0, [saxpy_param_0];
+    ld.param.f32        %f1, [saxpy_param_1];
+    ld.param.u64        %rd2, [saxpy_param_2];
+    cvta.to.global.u64  %rd2, %rd2;
+    ld.param.u64        %rd3, [saxpy_param_3];
+    cvta.to.global.u64  %rd3, %rd3;
+
+$L_entry:
+    mov.u32             %r4, %ctaid.x;
+    mov.u32             %r5, %ntid.x;
+    mul.lo.s32          %r6, %r4, %r5;
+    mov.u32             %r7, %tid.x;
+    add.s32             %r8, %r6, %r7;
+    mov.u32             %r9, %r8;               // %i.9 = copy i32 %8
+    setp.lt.s32         %p10, %r9, %r0;
+    @!%p10 bra          $L_if_end_2;            // false target is not next: branch on !cond
+$L_if_then_1:
+    mul.wide.s32        %rd15, %r9, 4;
+    add.s64             %rd16, %rd2, %rd15;
+    ld.global.f32       %f11, [%rd16];
+    mul.rn.f32          %f12, %f1, %f11;
+    mul.wide.s32        %rd17, %r9, 4;
+    add.s64             %rd18, %rd3, %rd17;
+    ld.global.f32       %f13, [%rd18];
+    add.rn.f32          %f14, %f12, %f13;
+    mul.wide.s32        %rd19, %r9, 4;
+    add.s64             %rd20, %rd3, %rd19;
+    st.global.f32       [%rd20], %f14;
+                                                // `jmp if.end.2` elided: it is the next block
+$L_if_end_2:
+    ret;
+}

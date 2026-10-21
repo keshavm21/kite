@@ -1,0 +1,11 @@
+build/
+cmake-build-*/
+.cache/
+compile_commands.json
+__pycache__/
+.venv/
+*.cubin
+*.out
+/out/
+.DS_Store
+CLAUDE.md

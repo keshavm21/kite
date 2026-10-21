@@ -1,0 +1,31 @@
+// Numerically stable softmax over each row (one thread per row), the core of
+// attention layers. Uses exp (approximate on the GPU, so compare with tolerance).
+// @kernel softmax_rows
+// @grid 1
+// @block 32
+// @arg rows i32 20
+// @arg cols i32 64
+// @arg x f32[1280] rand(5)
+// @arg y f32[1280] zeros
+// @check y
+
+kernel softmax_rows(rows: i32, cols: i32, x: *f32, y: *f32) {
+    var r: i32 = block_idx.x * block_dim.x + thread_idx.x;
+    if (r >= rows) {
+        return;
+    }
+    var base: i32 = r * cols;
+    var m: f32 = x[base];
+    for (var c: i32 = 1; c < cols; c += 1) {
+        m = max(m, x[base + c]);
+    }
+    var sum: f32 = 0.0;
+    for (var c: i32 = 0; c < cols; c += 1) {
+        var e: f32 = exp(x[base + c] - m);
+        y[base + c] = e;
+        sum += e;
+    }
+    for (var c: i32 = 0; c < cols; c += 1) {
+        y[base + c] = y[base + c] / sum;
+    }
+}

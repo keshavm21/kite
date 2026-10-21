@@ -1,0 +1,21 @@
+// Exercises `as`, bool -> i32, i32 <-> f32, abs/min/sqrt, || and !.
+// @kernel casts
+// @grid 1
+// @block 64
+// @arg n i32 64
+// @arg x f32[64] rand(10)
+// @arg q i32[64] zeros
+// @arg y f32[64] zeros
+// @check q y
+
+kernel casts(n: i32, x: *f32, q: *i32, y: *f32) {
+    var i: i32 = thread_idx.x;
+    if (!(i < n)) {
+        return;
+    }
+    var v: f32 = x[i] * 10.0;
+    var t: i32 = v as i32;
+    var flag: bool = t < 0 || t > 5;
+    q[i] = t * 2 + flag as i32;
+    y[i] = sqrt(abs(v)) + min(t, 3) as f32;
+}

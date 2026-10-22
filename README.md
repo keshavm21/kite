@@ -1,5 +1,9 @@
 # Kite
 
+[![CI](https://github.com/keshavm21/kite/actions/workflows/ci.yml/badge.svg)](https://github.com/keshavm21/kite/actions/workflows/ci.yml)
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
 **An optimizing compiler for a small GPU kernel language, written in C++17, targeting NVIDIA PTX.**
 
 ```kite
@@ -21,17 +25,34 @@ source ─► lexer ─► parser ─► type checker ─► CFG IR ─► SSA �
                                                └──────► interpreter (correctness oracle) ┘ differential tests
 ```
 
-> **Status:** Milestones 0-8 are implemented. The `-O0` and `-O1` pipelines match the IR interpreter on every example and test (byte for byte), and all 10 examples at the final `-O1` (with LICM and strength reduction) match the interpreter on a Tesla T4 (`gpu/check_all.sh` on Colab). Benchmarks: see [Results](#results).
+## At a glance
 
-## Quick start (30 seconds)
+- **End to end, on a real GPU.** All 10 example kernels compile to PTX that `ptxas` accepts and produce the same results on a Tesla T4 as the built-in interpreter, at both `-O0` and `-O1`.
+- **A real optimizer.** SSA construction, constant folding, copy propagation, GVN, DCE, CFG simplification, loop-invariant code motion, full unrolling of constant-trip loops and strength reduction, all on one IR, with a verifier that can run after every pass.
+- **Measured, not claimed.** Shared-memory tiled matmul runs in 2.82 ms at `-O1` against 7.93 ms at `-O0` (1024^3 on a T4), 2.8x faster than Kite's own naive kernel and within 17% of the same kernel compiled by NVRTC. Memory-bound kernels (saxpy, relu) match NVRTC exactly. `-O1` makes no difference there, and the results say so. [Details and caveats](#results).
+- **Tested against an oracle.** An IR interpreter simulates the thread grid. `-O0` and `-O1` must print byte-identical results for every example, 119 unit cases and 186 integration tests pass under ASan/UBSan, and a differential fuzzer (random kernels) found no mismatch in more than 10,000 seeds. It also caught every bug I injected to test it.
+- **No dependencies.** Hand-written lexer, recursive-descent parser, type checker, IR, dominator analysis, SSA and PTX emitter. No LLVM, no parser generators. Python is used for tests and GPU scripts only.
+
+## Quick start
 
 ```bash
+# macOS: xcode-select --install && brew install cmake
 cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
 ./build/kitec examples/row_sum.kite --emit=ir -O1     # the optimized IR
 ./build/kitec examples/row_sum.kite -O1 -o row_sum.ptx
 ./build/kitec run examples/row_sum.kite -O1           # interpret it with the @spec inputs; prints the @check buffers
 ./build/kitec examples/row_sum.kite -O1 --stats       # instruction count after every pass
 ```
+
+Run the tests:
+
+```bash
+ctest --test-dir build                                  # unit tests (doctest)
+python3 tests/run_tests.py --kitec build/kitec           # golden, error and differential tests
+python3 tests/fuzz/fuzz.py -n 500 -j 4                   # random kernels, -O0 vs -O1 vs each pass
+```
+
+The CLI: `kitec FILE.kite [-o OUT.ptx] [-O0|-O1] [--emit=tokens|ast|ir|ptx] [--passes=a,b,c] [--disable-pass=NAME] [--print-after-all] [--verify-each] [--stats] [--target=sm_75]`, and `kitec run FILE.kite` to interpret a kernel with the inputs from its `@spec` header.
 
 ## From kernel to IR to PTX
 
@@ -92,62 +113,14 @@ if.end.2:
 - **unroll:** fully unrolls loops of the form `phi i = [imm, pre], [i + imm, body]`, `cmp i, imm` whose body is a single block, when the trip count (found by simulating the induction variable, with i32 wraparound) is at most 64 and the result stays under 400 instructions. The induction values become immediates, so the cleanup passes fold the address arithmetic. It makes the code *bigger* (see `matmul_tiled` below); whether that pays off is measured, not assumed.
 - **strength:** `mul i32 x, 2^k` becomes `shl`. Signed `div` by `2^k` does **not** become a shift: `-7 / 2` is `-3` but `-7 >> 1` is `-4`. A unit test pins this.
 
-## Highlights
+## Design decisions
 
-- Hand-written lexer, recursive-descent parser and type checker with `file:line:col` diagnostics
-- CFG-based three-address IR with a verifier
-- SSA construction via dominance frontiers; constant folding, copy propagation, GVN, DCE, CFG simplification, LICM and strength reduction
-- PTX backend with global and shared memory, barriers and IEEE-exact float semantics
-- An IR interpreter that simulates the thread grid; every pass is checked by differential testing against it and against the GPU
-
-## Documentation (read in this order)
-
-| Doc | What it covers |
-|---|---|
-| [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) | What Kite is, why, goals, scope tiers, deliverables, definition of done |
-| [`docs/LANGUAGE.md`](docs/LANGUAGE.md) | The Kite language: grammar, types, semantics, static errors |
-| [`docs/IR.md`](docs/IR.md) | The intermediate representation: instructions, invariants, worked examples |
-| [`docs/PTX_BACKEND.md`](docs/PTX_BACKEND.md) | How IR becomes PTX: lowering table, control flow, floating-point rules |
-| [`docs/TESTING.md`](docs/TESTING.md) | Test layers, the `@spec` format, the interpreter, GPU runs on Colab |
-| [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | Nine milestones with algorithms, file lists and acceptance criteria |
-| [`docs/architecture.md`](docs/architecture.md) | One-page map of the pipeline and the source tree |
-| [`docs/INTERVIEW_PREP.md`](docs/INTERVIEW_PREP.md) | Resume bullets per stage, pitch, expected questions, study list |
-
-## Build
-
-```bash
-# macOS: xcode-select --install && brew install cmake
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
-ctest --test-dir build                     # unit tests
-python3 tests/run_tests.py                 # golden, error and differential tests
-```
-
-## Run on a GPU (Google Colab, free T4)
-
-```bash
-python3 gpu/run_hello.py                                   # sanity check: hand-written PTX
-./build/kitec -O1 examples/softmax_rows.kite -o sm.ptx
-ptxas -arch=sm_75 -v sm.ptx -o sm.cubin                    # registers, shared memory, spills
-python3 gpu/run_gpu.py examples/softmax_rows.kite sm.ptx > gpu.out
-./build/kitec run -O1 examples/softmax_rows.kite > interp.out
-python3 gpu/compare.py interp.out gpu.out                  # MATCH
-```
-
-## Repository map
-
-```
-src/frontend   lexer, parser, AST, semantic analysis
-src/ir         IR, builder, printer, verifier, AST→IR lowering
-src/analysis   CFG, dominators and dominance frontiers, natural loops
-src/transform  SSA construction/destruction, optimization passes, pass manager
-src/interp     IR interpreter, @spec parser
-src/codegen    PTX emitter
-examples/      10 kernels: vector ops, ReLU, softmax, reductions, matmul (naive + tiled)
-gpu/           GPU runner, comparer, benchmarks (bench.py, CuPy)
-tests/         unit, golden, error, differential tests; hand-checked reference PTX
-results/       generated benchmark and optimization tables
-```
+- **Locals are virtual registers, never memory.** SSA construction works directly on registers, so there is no alloca/mem2reg stage. Arrays exist only as kernel pointers and `shared` arrays, and every access is `base[index]` on an *element* index; the backend expands it to byte addresses. That keeps the interpreter bounds-checkable and address arithmetic out of the optimizer.
+- **One IR in three forms** (lowered, SSA, post-SSA), with a pass manager that tracks the form and rejects a pass run in the wrong one. `-O0` goes straight from lowered IR to PTX; the backend and interpreter accept every form.
+- **The interpreter is the oracle, so floats must be bit-exact.** The backend emits `mul.rn.f32` and `add.rn.f32` (explicit rounding forbids fma contraction) and the build uses `-ffp-contract=off`. Then `+ - * /` and `sqrt` agree bit for bit between the interpreter and the GPU, and only `exp` needs a tolerance.
+- **Optimizations follow the exact semantics.** `x * 0.0` and `x + 0.0` are not folded for f32 (NaN, -0.0), `exp` is never folded, and i32 division by zero is never folded. Signed `x / 2^k` is not a shift (`-7 / 2` is `-3`, `-7 >> 1` is `-4`). LICM never hoists a load, a `div`/`rem` or an `ftoi`, because hoisting speculates, and those can trap or read memory that changed.
+- **ptxas does register allocation.** PTX has unlimited virtual registers, so Kite does none. The cost is that ptxas often removes the redundancy Kite's passes remove, which is why the benchmarks report SASS and registers next to run time.
+- **Debug the verifier-first way.** Shrink to the smallest failing kernel, then use `--emit=ir`, `--print-after-all` and `--verify-each`. The verifier checks the IR invariants after every pass in the test runner.
 
 ## Results
 
@@ -201,6 +174,52 @@ What the numbers say:
 - The IR verifier runs after lowering and, in the test runner, after every pass.
 - Golden files pin the AST, the IR at every form, and the PTX; every PTX goes through `ptxas` (or a structural linter when it is not installed).
 - Unit tests (doctest) cover the lexer, parser, sema, lowering, verifier, interpreter, PTX, SSA and each pass.
+
+## Run on a GPU (Google Colab, free T4)
+
+```bash
+python3 gpu/run_hello.py                                   # sanity check: hand-written PTX
+./build/kitec -O1 examples/softmax_rows.kite -o sm.ptx
+ptxas -arch=sm_75 -v sm.ptx -o sm.cubin                    # registers, shared memory, spills
+python3 gpu/run_gpu.py examples/softmax_rows.kite sm.ptx > gpu.out
+./build/kitec run -O1 examples/softmax_rows.kite > interp.out
+python3 gpu/compare.py interp.out gpu.out                  # MATCH
+
+OPT=-O1 gpu/check_all.sh                                   # all examples: compile, run on the GPU, compare with the interpreter
+python3 gpu/bench.py                                       # writes results/bench_T4.md (needs CuPy)
+python3 gpu/sass_opcodes.py                                # writes results/sass_opcodes.md (needs nvcc, cuobjdump)
+```
+
+The GPU scripts need an NVIDIA GPU and CuPy; `ptxas`, `nvcc` and `cuobjdump` come with the CUDA toolkit (on Colab: `export PATH=$PATH:/usr/local/cuda/bin`). Nothing else in the repo needs a GPU.
+
+## Repository map
+
+```
+src/frontend   lexer, parser, AST, semantic analysis
+src/ir         IR, builder, printer, verifier, AST→IR lowering
+src/analysis   CFG, dominators and dominance frontiers, natural loops
+src/transform  SSA construction/destruction, optimization passes, pass manager
+src/interp     IR interpreter, @spec parser
+src/codegen    PTX emitter
+examples/      10 kernels: vector ops, ReLU, softmax, reductions, matmul (naive + tiled)
+gpu/           GPU runner, comparer, benchmarks (bench.py), SASS opcode report (sass_opcodes.py)
+tests/         unit, golden, error, differential tests; fuzz/ (random-kernel fuzzer); hand-checked reference PTX
+scripts/       opt_stats.py (instruction-count table)
+results/       generated benchmark, SASS and optimization tables
+docs/          language, IR, PTX backend, testing and architecture documents
+```
+
+## Documentation (read in this order)
+
+| Doc | What it covers |
+|---|---|
+| [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) | What Kite is, why, goals, scope tiers, deliverables, definition of done |
+| [`docs/LANGUAGE.md`](docs/LANGUAGE.md) | The Kite language: grammar, types, semantics, static errors |
+| [`docs/IR.md`](docs/IR.md) | The intermediate representation: instructions, invariants, worked examples |
+| [`docs/PTX_BACKEND.md`](docs/PTX_BACKEND.md) | How IR becomes PTX: lowering table, control flow, floating-point rules |
+| [`docs/TESTING.md`](docs/TESTING.md) | Test layers, the `@spec` format, the interpreter, GPU runs on Colab |
+| [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | Nine milestones with algorithms, file lists and acceptance criteria |
+| [`docs/architecture.md`](docs/architecture.md) | One-page map of the pipeline and the source tree |
 
 ## What I'd do next
 

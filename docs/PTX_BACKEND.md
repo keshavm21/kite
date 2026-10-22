@@ -11,7 +11,7 @@ Official reference (bookmark it): *PTX ISA* — https://docs.nvidia.com/cuda/par
 - **Explicit state spaces:** `.param` (kernel arguments), `.global` (device memory), `.shared` (per-block on-chip memory), `.reg` (registers), and others.
 - **Forward compatible:** PTX written for `sm_75` is JIT-compiled by the driver for any newer GPU. That is why we target `sm_75` (Colab's T4) and it also runs on A100/H100/L4.
 
-So Kite's job ends at valid, sensible PTX. Register allocation and instruction scheduling belong to ptxas. Knowing where that line sits is exactly what the PTX compiler team works on.
+So Kite's job ends at valid, sensible PTX. Register allocation and instruction scheduling belong to ptxas.
 
 ## 2. Module structure
 
@@ -122,13 +122,13 @@ Constant index (optional peephole): `ld.global.f32 d, [%rdP+12];` for `%p[3]`. p
 
 4. **`jmp T`**: `bra.uni $L_T;` unless `T == N`.
 
-`bra.uni` tells ptxas the branch is non-divergent (all threads take it). Use it only for unconditional jumps. The guarded `@%p bra` may diverge, and the hardware handles that. Interviewers like asking what divergence costs: both paths execute serially for the warp.
+`bra.uni` tells ptxas the branch is non-divergent (all threads take it). Use it only for unconditional jumps. The guarded `@%p bra` may diverge, and the hardware handles that. Divergence costs time: both paths execute serially for the warp.
 
-## 7. Floating point: the `.rn` rule (an interview-worthy detail)
+## 7. Floating point: the `.rn` rule
 
 PTX's plain `add.f32` / `mul.f32` (with no rounding modifier) **may be contracted by ptxas into a fused multiply-add** (`fma`), which rounds once instead of twice. That changes results in the last bit. Kite's interpreter computes `a*b` then `+c` with two roundings, so the GPU and the interpreter would disagree.
 
-Emitting **`mul.rn.f32` and `add.rn.f32`** (explicit round-to-nearest) forbids contraction, per the PTX ISA. With that, `+ - * /` and `sqrt` are **bit-exact** between the interpreter and the GPU. Only `exp` (approximate) needs a tolerance. A future `-ffast-math` flag could deliberately emit `fma.rn.f32` for speed. That's a nice stretch, and a good thing to bring up in interviews.
+Emitting **`mul.rn.f32` and `add.rn.f32`** (explicit round-to-nearest) forbids contraction, per the PTX ISA. With that, `+ - * /` and `sqrt` are **bit-exact** between the interpreter and the GPU. Only `exp` (approximate) needs a tolerance. A future `-ffast-math` flag could deliberately emit `fma.rn.f32` for speed. That is a possible extension.
 
 **Float immediates** are written as hex bit patterns, `0f` + 8 hex digits:
 ```cpp
@@ -177,7 +177,7 @@ On Linux without a GPU (e.g. CI), `pip install nvidia-cuda-nvcc-cu12` provides `
 | `Unexpected instruction types specified for 'mul'` | Wrong type suffix, e.g. `mul.rn.s32` (`.rn` is for floats). |
 | `Arguments mismatch for instruction 'mad.lo'` | A register is used but not declared (e.g. `%r4` with `.reg .b32 %r<4>`), or a register of the wrong class. |
 
-## 11. Honest notes for interviews
+## 11. Honest notes on performance
 
 - ptxas is an optimizing compiler itself. For simple kernels, `-O1` vs `-O0` may produce **similar SASS**, because ptxas cleans up the redundancy anyway. Measure and report both: PTX instruction counts (what Kite controls) and SASS instruction counts and registers (`cuobjdump -sass`, `ptxas -v`). Saying "my optimizations cut PTX size by X%, but ptxas already removed most of it in SASS, so runtime didn't change for memory-bound kernels" shows real understanding. It is a strong answer, not a weak one.
 - Memory-bound kernels (saxpy, relu) are limited by DRAM bandwidth. Report achieved GB/s against the GPU's peak. Compute-bound ones (matmul) show the effect of shared-memory tiling.

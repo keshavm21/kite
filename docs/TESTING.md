@@ -1,6 +1,6 @@
 # Testing Strategy
 
-A compiler is only as good as its tests. Kite's testing story is also one of its strongest interview talking points: **"every optimization is checked by an IR verifier and by differential testing against an interpreter, and the GPU output is checked against the same oracle."**
+A compiler is only as good as its tests. Kite's testing rests on one idea: **"every optimization is checked by an IR verifier and by differential testing against an interpreter, and the GPU output is checked against the same oracle."**
 
 ## 1. The four layers
 

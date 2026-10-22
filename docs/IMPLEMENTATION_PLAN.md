@@ -1,24 +1,24 @@
 # Kite: Implementation Plan
 
-Nine milestones, about **13 focused days** in total. Each milestone ends with something that runs, a passing test suite, and a commit. **Milestone 4 is the minimum resume-worthy version** (about 6.5 days); everything after it upgrades the project.
+Nine milestones, about **13 focused days** in total. Each milestone ends with something that runs, a passing test suite, and a commit. **Milestone 4 is the minimum end-to-end version** (about 6.5 days); everything after it upgrades the project.
 
-| # | Milestone | Days | Running total | You can say on your resume |
+| # | Milestone | Days | Running total | What exists at this point |
 |---|---|---|---|---|
 | 0 | Setup + run hand-written PTX on a GPU | 0.5 | 0.5 | — |
 | 1 | Lexer + parser + AST printer | 1.5 | 2 | — |
 | 2 | Semantic analysis | 1 | 3 | — |
 | 3 | IR, lowering, verifier, interpreter | 2 | 5 | — |
-| 4 | **PTX backend: examples run on the GPU** | 1.5 | **6.5** | "compiler for a GPU kernel language targeting PTX" |
-| 5 | CFG analyses + SSA construction/destruction | 2 | 8.5 | "+ SSA-based IR" |
-| 6 | Optimization passes + pass manager | 2 | 10.5 | "+ optimizer, with measured results" |
-| 7 | Shared memory + barriers | 1 | 11.5 | "+ shared-memory tiled matmul" |
-| 8 | LICM, benchmarks, README | 1.5 | 13 | full bullet with numbers |
+| 4 | **PTX backend: examples run on the GPU** | 1.5 | **6.5** | a compiler for a GPU kernel language targeting PTX |
+| 5 | CFG analyses + SSA construction/destruction | 2 | 8.5 | + SSA-based IR |
+| 6 | Optimization passes + pass manager | 2 | 10.5 | + optimizer, with measured results |
+| 7 | Shared memory + barriers | 1 | 11.5 | + shared-memory tiled matmul |
+| 8 | LICM, benchmarks, README | 1.5 | 13 | LICM, benchmarks with numbers, documentation |
 
 **Rules for the whole project**
 1. Read the relevant doc section before starting a milestone: `LANGUAGE.md` for M1–2, `IR.md` for M3 and M5–6, `PTX_BACKEND.md` for M4 and M7, `TESTING.md` throughout.
 2. Write tests in the same sitting as the code. A milestone isn't done until its tests pass.
-3. Commit at least once per milestone with a clear message. Tag `v0.1` after M4 and `v0.2` after M6.
-4. Put on the resume only what is pushed and working.
+3. Commit at least once per milestone with a clear message.
+4. Claim only what is pushed, working and measured.
 5. Stuck for more than 45 minutes on one bug? Shrink the input to the smallest failing kernel, then dump `--emit=ir` and `--print-after-all`. Check the verifier first.
 
 ---
@@ -208,7 +208,7 @@ Write `tests/run_tests.py` (`TESTING.md §4`): golden, error and exec categories
 
 ---
 
-## Milestone 4 — PTX backend (1.5 days) → tag `v0.1`
+## Milestone 4 — PTX backend (1.5 days)
 
 **Files:** `src/codegen/ptx.{h,cpp}`
 
@@ -237,7 +237,7 @@ Test loop:
 - Run `ptxas -arch=sm_75` on every example's PTX (in CI through `nvidia-cuda-nvcc-cu12`).
 - On Colab: `run_gpu.py` + `compare.py` for every example except the shared-memory ones.
 
-**Done when:** 8 examples produce identical results on the GPU and the interpreter (`exp` within tolerance), and CI assembles all PTX with ptxas. **Tag `v0.1`. This is a complete, honest resume project.**
+**Done when:** 8 examples produce identical results on the GPU and the interpreter (`exp` within tolerance), and CI assembles all PTX with ptxas. This is a complete end-to-end compiler.
 
 ---
 
@@ -314,7 +314,7 @@ while pending:
     t = newReg(type(d)); emit "t = copy d"
     replace every pending source d with t
 ```
-This is where the classic **lost-copy** and **swap** problems are solved. Know both by name for interviews (Briggs et al. 1998; Sreedhar et al. 1999).
+This is where the classic **lost-copy** and **swap** problems are solved. Both are worth knowing by name (Briggs et al. 1998; Sreedhar et al. 1999).
 
 ### 5.5 Tests
 Unit tests for dominators and DF on hand-built CFGs (diamond, loop, nested loop). Then a big one: for **every example**, `lowered → SSA → verify (SSA rules) → destruct → verify → interpret` must match `-O0` exactly. Add the hidden flag `--passes=ssa,out-of-ssa` for this.
@@ -323,7 +323,7 @@ Unit tests for dominators and DF on hand-built CFGs (diamond, loop, nested loop)
 
 ---
 
-## Milestone 6 — Optimizations and pass manager (2 days) → tag `v0.2`
+## Milestone 6 — Optimizations and pass manager (2 days)
 
 **Files:** `src/transform/pass_manager.{h,cpp}`, `constfold.cpp`, `copyprop.cpp`, `dce.cpp`, `simplifycfg.cpp`, `gvn.cpp`
 
@@ -347,7 +347,7 @@ class PassManager {
 
 **Stats:** `--stats` prints a table: instruction count per kernel after each pass. Generate `results/opt_stats.md` with a script: for each example, `-O0` vs `-O1` IR and PTX instruction counts.
 
-**Done when:** every example gives `-O0 == -O1` exactly in the interpreter; `--verify-each` passes; GPU results still match; `opt_stats.md` is generated. **Tag `v0.2`.**
+**Done when:** every example gives `-O0 == -O1` exactly in the interpreter; `--verify-each` passes; GPU results still match; `opt_stats.md` is generated.
 
 ---
 
@@ -372,7 +372,7 @@ class PassManager {
 4. Process inner loops before outer ones (sort by body size).
 
 ### 8.2 Strength reduction
-`mul i32 x, 2^k` → `shl i32 x, k` (either operand order). **Don't** turn signed `div` by `2^k` into a shift: `-7 / 2 = -3`, but `-7 >> 1 = -4`. Knowing *why* is the interview answer.
+`mul i32 x, 2^k` → `shl i32 x, k` (either operand order). **Don't** turn signed `div` by `2^k` into a shift: `-7 / 2 = -3`, but `-7 >> 1 = -4`. Knowing *why* matters: it is the classic strength-reduction trap.
 
 ### 8.3 Benchmarks (`gpu/bench.py`, on Colab)
 For saxpy, relu, softmax_rows, matmul_naive and matmul_tiled at realistic sizes (e.g. `n = 2^24`; matmul 1024³):
@@ -388,7 +388,7 @@ Fill in `README.md`: what it is, the pipeline diagram, a 30-second quick start, 
 
 ---
 
-## Stretch goals (only after M8, ranked by interview value)
+## Stretch goals (only after M8, ranked by value)
 
 1. **Fuzzer** (`TESTING.md §6`): high value; finds real bugs; great story.
 2. **SCCP** (sparse conditional constant propagation; Wegman–Zadeck): replaces `constfold` + branch folding and handles constants through phis and loops.
@@ -402,6 +402,5 @@ Fill in `README.md`: what it is, the pipeline diagram, a 30-second quick start, 
 
 ## If time runs out
 
-- **Interview tomorrow and you're at M3?** Finish M4 first. A backend that runs on a GPU beats a half-done optimizer.
+- **Short on time and at M3?** Finish M4 first. A backend that runs on a GPU beats a half-done optimizer.
 - **Stuck in SSA (M5)?** Fallback: skip SSA and do *local* (per-block) constant folding + copy propagation, plus DCE driven by liveness on the lowered IR. Less impressive, but still real and honest.
-- Resume wording follows what's pushed: see `INTERVIEW_PREP.md §1` for a bullet at each stage.

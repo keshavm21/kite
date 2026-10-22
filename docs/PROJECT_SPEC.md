@@ -2,7 +2,7 @@
 
 **One line:** Kite is an optimizing compiler, written in C++17, for a small GPU kernel language. It compiles to **NVIDIA PTX**, runs on real NVIDIA GPUs, and is checked by an IR interpreter used as a correctness oracle.
 
-**Resume title:** *Kite — Optimizing Compiler for a GPU Kernel Language Targeting NVIDIA PTX*
+**Full title:** *Kite — Optimizing Compiler for a GPU Kernel Language Targeting NVIDIA PTX*
 
 ---
 
@@ -37,9 +37,9 @@ Kite is a small, complete version of that pipeline:
 
 The question the project answers is: **can I take a kernel language from source text all the way to code that runs correctly on an NVIDIA GPU, optimize it, and prove each optimization preserves behaviour?**
 
-## 2. Why this project (hiring-manager view)
+## 2. What Kite demonstrates
 
-| The NVIDIA JD / assessment asks for | Where Kite shows it |
+| Area | Where Kite shows it |
 |---|---|
 | C/C++ | The whole compiler is modern C++17, with no parser generators or LLVM dependency. |
 | Compiler knowledge | Hand-written lexer and recursive-descent parser, type checker, CFG IR, dominators, SSA, dataflow, optimization passes. |
@@ -48,26 +48,26 @@ The question the project answers is: **can I take a kernel language from source 
 | ML exposure | Example kernels are ML ops (ReLU, softmax, reductions, matmul), benchmarked against the libraries. |
 | Engineering discipline | IR verifier, differential testing against the interpreter, golden tests, CI. |
 
-It differs from your course project (Mini C-Compiler, which is Flex/Bison to TAC with no backend). Kite has a **hand-written** front end, an **SSA optimizer**, and a **real GPU backend**. In interviews you can say: "the course project taught me front ends; Kite is where I learned the middle and back end."
+Kite has a **hand-written** front end (no parser generators), an **SSA optimizer**, and a **real GPU backend**, and every stage is checked against an interpreter that serves as a correctness oracle.
 
 ## 3. Goals
 
 1. **G1 — End to end:** every kernel in `examples/` compiles to PTX that `ptxas` accepts, runs on an NVIDIA GPU (Colab T4 is enough), and matches the interpreter's output.
 2. **G2 — Real optimizer:** SSA-based passes (constant folding, copy propagation, dead-code elimination, CFG simplification, dominator-based CSE, LICM). Their effect is *measured*: IR and PTX instruction counts before and after, plus `ptxas -v` register counts.
 3. **G3 — Proven correct:** every pass is checked by (a) the IR verifier and (b) differential testing (interpreter `-O0` vs `-O1` vs GPU).
-4. **G4 — Explainable:** you can explain every design decision in an interview. The docs record the reasoning, not only the result.
+4. **G4 — Explainable:** every design decision is documented with its reasoning, not only its result.
 
-## 4. Non-goals (say these out loud in interviews; scoping is a skill)
+## 4. Non-goals
 
 - Not a CUDA C++ compiler. The language is deliberately tiny (see `LANGUAGE.md`).
-- **No register allocation.** PTX has unlimited virtual registers; `ptxas` allocates physical registers. This is a real design property of PTX, and knowing it is a good interview point.
+- **No register allocation.** PTX has unlimited virtual registers; `ptxas` allocates physical registers. This is a real design property of PTX.
 - No LLVM and no parser generators. Building these yourself is the point.
 - No device functions, structs, 64-bit types, unsigned types or atomics (atomics are a possible stretch goal).
 - Not competing with nvcc/cuBLAS on speed. The benchmarks are honest measurements, not marketing.
 
 ## 5. Scope tiers
 
-Build in this order. Every tier leaves a working, resume-worthy project.
+Build in this order. Every tier leaves a working project.
 
 ### Tier 1 — MVP (Milestones 0–4): "a kernel language that runs on the GPU"
 - Lexer, recursive-descent parser, AST, AST printer
@@ -141,7 +141,7 @@ Everything except GPU execution runs on your Mac. The interpreter is what makes 
 kite/
 ├── CMakeLists.txt
 ├── README.md
-├── docs/            PROJECT_SPEC, LANGUAGE, IR, PTX_BACKEND, IMPLEMENTATION_PLAN, TESTING, INTERVIEW_PREP
+├── docs/            PROJECT_SPEC, LANGUAGE, IR, PTX_BACKEND, IMPLEMENTATION_PLAN, TESTING
 ├── src/
 │   ├── main.cpp                 driver: flags, pipeline, exit codes
 │   ├── support/                 diagnostics.{h,cpp}, source.{h,cpp} (file + line/col)
@@ -160,7 +160,7 @@ kite/
 │   └── run_tests.py
 ├── examples/                    10 kernels with @spec headers (provided)
 ├── gpu/                         hello.ptx, run_hello.py, run_gpu.py, compare.py, kite_spec.py (provided);
-│                                bench.py, check_all.sh, kite_colab.ipynb (you write)
+│                                bench.py, sass_opcodes.py, check_all.sh
 ├── results/                     generated tables
 └── .github/workflows/ci.yml
 ```

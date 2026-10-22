@@ -24,17 +24,10 @@ if.else.8:
   %i.14 = copy i32 %7
   jmp while.cond.1
 while.end.3:
-  %k.18 = copy i32 0
-  jmp for.cond.10
-for.cond.10:
-  %9 = lt i32 %k.18, 4
-  br %9, for.body.11, for.end.13
-for.body.11:
   barrier
-  %10 = add i32 %k.18, 1
-  %k.18 = copy i32 %10
-  jmp for.cond.10
-for.end.13:
+  barrier
+  barrier
+  barrier
   %i.20 = copy i32 0
   jmp for.cond.14
 for.cond.14:

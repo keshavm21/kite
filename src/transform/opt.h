@@ -13,6 +13,7 @@ bool dce(ir::Function& fn);           // mark and sweep from stores, barriers an
 bool simplifycfg(ir::Function& fn);   // constant branches, br c,X,X, unreachable blocks, block merging
 bool gvn(ir::Function& fn);           // dominator-scoped value numbering of pure instructions
 bool licm(ir::Function& fn);          // hoists loop-invariant pure instructions to the preheader (SSA)
+bool unroll(ir::Function& fn);        // fully unrolls small loops with a constant trip count (SSA)
 bool strength(ir::Function& fn);      // mul i32 x, 2^k -> shl i32 x, k
 
 // What licm has done so far in this process (summed over functions); shown by --stats.

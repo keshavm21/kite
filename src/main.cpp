@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -24,7 +25,7 @@ namespace {
 
 void usage() {
     std::cerr << "usage: kitec FILE.kite [-o OUT] [-O0|-O1] [--emit=tokens|ast|ir|ptx] [--target=sm_75]\n"
-                 "             [--passes=a,b,c] [--verify-each] [--print-after-all] [--stats]\n"
+                 "             [--passes=a,b,c] [--disable-pass=NAME] [--verify-each] [--print-after-all] [--stats]\n"
                  "       kitec run FILE.kite [-O0|-O1] [--verify-each]\n";
 }
 
@@ -83,7 +84,7 @@ int main(int argc, char** argv) {
     int optLevel = 0;
     kite::transform::Options passOpts;
     bool havePasses = false;
-    std::vector<std::string> passes;
+    std::vector<std::string> passes, disabled;
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (i == 1 && a == "run") runMode = true;
@@ -98,6 +99,7 @@ int main(int argc, char** argv) {
             std::stringstream names(a.substr(9));
             for (std::string name; std::getline(names, name, ',');) passes.push_back(name);
         }
+        else if (a.rfind("--disable-pass=", 0) == 0) disabled.push_back(a.substr(15));
         else if (a.rfind("--emit=", 0) == 0) emit = a.substr(7);
         else if (a.rfind("--target=", 0) == 0) target = a.substr(9);
         else if (!a.empty() && a[0] != '-' && inPath.empty()) inPath = a;
@@ -158,6 +160,14 @@ int main(int argc, char** argv) {
     std::string err;
     std::vector<kite::transform::Step> pipeline =
         havePasses ? kite::transform::flatPipeline(passes) : optLevel >= 1 ? kite::transform::o1Pipeline() : std::vector<kite::transform::Step>{};
+    for (const std::string& name : disabled) {  // e.g. --disable-pass=unroll, to measure what a pass contributes to -O1
+        const std::vector<std::string> known = kite::transform::passNames();
+        if (std::find(known.begin(), known.end(), name) == known.end()) {
+            std::cerr << "error: unknown pass '" << name << "' in --disable-pass\n";
+            return 2;
+        }
+        for (kite::transform::Step& step : pipeline) step.passes.erase(std::remove(step.passes.begin(), step.passes.end(), name), step.passes.end());
+    }
     kite::transform::PassManager pm(passOpts, &std::cerr);
     bool passesOk = pm.run(module, pipeline, form, err);
     if (passOpts.collectStats) pm.printStats(std::cerr);

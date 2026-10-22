@@ -227,9 +227,9 @@ def median_ms(cp, fn) -> float:
     return statistics.median(times)
 
 
-def kitec_ptx(kitec: Path, src: Path, opt: str, arch: str, work: Path) -> Path:
-    out = work / f"{src.stem}{opt}.ptx"
-    r = subprocess.run([str(kitec), opt, str(src), f"--target={arch}", "-o", str(out)], capture_output=True, text=True)
+def kitec_ptx(kitec: Path, src: Path, opt: str, arch: str, work: Path, extra=(), tag="") -> Path:
+    out = work / f"{src.stem}{opt}{tag}.ptx"
+    r = subprocess.run([str(kitec), opt, str(src), f"--target={arch}", *extra, "-o", str(out)], capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit(f"kitec failed on {src}:\n{r.stderr}")
     return out
@@ -271,10 +271,12 @@ def run_bench(cp, b: Bench, kitec: Path, arch: str, quick: bool, work: Path):
     cp.cuda.Device().synchronize()
 
     variants = []  # (label, kernel, cubin)
-    for opt in ("-O0", "-O1"):
-        ptx = kitec_ptx(kitec, ROOT / "examples" / f"{b.kite}.kite", opt, arch, work)
+    for label, opt, extra, tag in (("Kite -O0", "-O0", (), ""),
+                                   ("Kite -O1 without unroll", "-O1", ("--disable-pass=unroll",), "_nounroll"),
+                                   ("Kite -O1", "-O1", (), "")):
+        ptx = kitec_ptx(kitec, ROOT / "examples" / f"{b.kite}.kite", opt, arch, work, extra, tag)
         kernel = cp.RawModule(path=str(ptx)).get_function(b.name)
-        variants.append((f"Kite {opt}", kernel, cubin_from_ptx(ptx, arch)))
+        variants.append((label, kernel, cubin_from_ptx(ptx, arch)))
     nvrtc = cp.RawKernel(b.cuda, b.name, options=("--fmad=false",))
     variants.append(("CUDA C (NVRTC)", nvrtc, cubin_from_cuda(b.cuda, b.name, arch, work)))
 
@@ -302,12 +304,14 @@ def render(b: Bench, rows) -> str:
     for label, ms, regs, sass, ok in rows:
         rate = b.work / (ms * scale)
         lines.append(f"| {label} | {ms:.4f} | {rate:.1f} | {100 * rate / peak:.0f}% | {fmt(regs)} | {fmt(sass)} | {'yes' if ok else '**NO**'} |")
-    o0, o1 = rows[0][1], rows[1][1]
-    change = (o0 - o1) / o0
-    verdict = "no measurable change" if abs(change) < NOISE else (f"{100 * change:.0f}% faster" if change > 0 else f"{-100 * change:.0f}% slower")
-    sass0, sass1 = rows[0][3], rows[1][3]
-    sass_note = f"; SASS {sass0} -> {sass1} instructions" if sass0 is not None and sass1 is not None else ""
-    lines += ["", f"-O1 vs -O0 runtime: **{verdict}** ({o0:.4f} -> {o1:.4f} ms), registers {rows[0][2]} -> {rows[1][2]}{sass_note}.", ""]
+    def compare(base, new, what):
+        change = (base[1] - new[1]) / base[1]
+        verdict = "no measurable change" if abs(change) < NOISE else (f"{100 * change:.0f}% faster" if change > 0 else f"{-100 * change:.0f}% slower")
+        sass = f"; SASS {base[3]} -> {new[3]} instructions" if base[3] is not None and new[3] is not None else ""
+        return f"{what}: **{verdict}** ({base[1]:.4f} -> {new[1]:.4f} ms), registers {base[2]} -> {new[2]}{sass}."
+
+    o0, nounroll, o1 = rows[0], rows[1], rows[2]
+    lines += ["", compare(o0, o1, "-O1 vs -O0 runtime"), "", compare(nounroll, o1, "Loop unrolling alone (-O1 vs -O1 without unroll)"), ""]
     return "\n".join(lines)
 
 

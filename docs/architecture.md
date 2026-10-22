@@ -21,7 +21,7 @@
 | IR | `src/ir` | Three-address instructions in basic blocks. Locals are virtual registers (no memory, no alloca). Memory ops index by element (`base[idx]`). The verifier checks the invariants in `docs/IR.md` section 6. |
 | Analyses | `src/analysis` | CFG (preds/succs, reverse postorder, unreachable removal), dominator tree and dominance frontiers (Cooper-Harvey-Kennedy), natural loops with preheaders. |
 | SSA | `src/transform/ssa_*` | Phis at iterated dominance frontiers, renaming along the dominator tree. Out-of-SSA turns phis into copies in the predecessors. |
-| Optimizer | `src/transform`, `pass_manager.*` | `constfold`, `copyprop`, `gvn`, `dce`, `simplifycfg`, `licm`, `strength`. The pass manager tracks the IR form (lowered, SSA, post-SSA), verifies after each pass on request, and prints per-pass statistics. |
+| Optimizer | `src/transform`, `pass_manager.*` | `constfold`, `copyprop`, `gvn`, `dce`, `simplifycfg`, `unroll`, `licm`, `strength`. The pass manager tracks the IR form (lowered, SSA, post-SSA), verifies after each pass on request, and prints per-pass statistics. |
 | Backend | `src/codegen/ptx` | Accepts any IR form. `mul.rn`/`add.rn` (no fma), float immediates as hex bits, `mul.wide` + `add` address math, `.reg` declarations sized from the highest id per class. No register allocation: ptxas does it. |
 | Interpreter | `src/interp` | Simulates the thread grid, shared memory and barriers; reports UB (out of bounds, divide by zero, divergent barrier, bad `ftoi`). It is the correctness oracle. |
 
@@ -31,7 +31,7 @@ The same data structure is used in three forms: *lowered* (a local may be assign
 
 ## -O1
 
-`remove-unreachable, ssa, {constfold copyprop gvn dce simplifycfg}` until stable (at most 4 rounds), then `licm, gvn, strength, constfold, dce, simplifycfg, out-of-ssa`.
+`remove-unreachable, ssa, {constfold copyprop gvn dce simplifycfg}` until stable (at most 4 rounds), then `{unroll constfold copyprop gvn dce simplifycfg}` (until stable, at most 4 rounds), then `licm, gvn, strength, constfold, dce, simplifycfg, out-of-ssa`.
 
 LICM hoists only what cannot trap or read memory, so it is safe even when the loop runs zero times. The extra `gvn` after it merges the identical computations LICM collects in a preheader.
 

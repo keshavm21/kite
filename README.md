@@ -84,11 +84,12 @@ if.end.2:
 
 ## The optimizer
 
-`-O1` runs `remove-unreachable, ssa, {constfold copyprop gvn dce simplifycfg}` until nothing changes (at most 4 rounds), then `licm, gvn, strength, constfold, dce, simplifycfg, out-of-ssa`. Any list of passes can be run with `--passes=a,b,c`; the pass manager tracks the IR form (lowered, SSA, post-SSA) and rejects a bad order. `--verify-each` runs the verifier after every pass, `--print-after-all` dumps the IR, `--stats` prints instruction counts per pass.
+`-O1` runs `remove-unreachable, ssa, {constfold copyprop gvn dce simplifycfg}` until nothing changes (at most 4 rounds), then `{unroll constfold copyprop gvn dce simplifycfg}` the same way, then `licm, gvn, strength, constfold, dce, simplifycfg, out-of-ssa`. `--disable-pass=NAME` removes a pass from `-O1`, which is how the benchmark isolates what each pass contributes. Any list of passes can be run with `--passes=a,b,c`; the pass manager tracks the IR form (lowered, SSA, post-SSA) and rejects a bad order. `--verify-each` runs the verifier after every pass, `--print-after-all` dumps the IR, `--stats` prints instruction counts per pass.
 
 - **constfold:** folds immediates with exact f32 semantics. `x*0.0` and `x+0.0` are *not* folded (NaN and -0.0), `exp` is never folded, and i32 division by zero is never folded.
 - **gvn:** dominator-scoped value numbering of pure instructions. Loads are never numbered.
 - **licm:** natural loops from back edges, inner loops first. It hoists only instructions that cannot trap and do not touch memory: no loads, no `div`/`rem` (division by zero), no `ftoi` (undefined on NaN). A loop without a preheader is skipped and counted in `--stats`.
+- **unroll:** fully unrolls loops of the form `phi i = [imm, pre], [i + imm, body]`, `cmp i, imm` whose body is a single block, when the trip count (found by simulating the induction variable, with i32 wraparound) is at most 64 and the result stays under 400 instructions. The induction values become immediates, so the cleanup passes fold the address arithmetic. It makes the code *bigger* (see `matmul_tiled` below); whether that pays off is measured, not assumed.
 - **strength:** `mul i32 x, 2^k` becomes `shl`. Signed `div` by `2^k` does **not** become a shift: `-7 / 2` is `-3` but `-7 >> 1` is `-4`. A unit test pins this.
 
 ## Highlights

@@ -31,8 +31,6 @@ TIMEOUT = 60
 # A runtime error from the interpreter: "error: <what> in kernel K, block B, thread T, ..."
 UB = re.compile(r"^error: .* in kernel \w+, block \d+", re.M)
 
-PIPELINE = ["constfold", "copyprop", "gvn", "dce", "simplifycfg", "licm", "strength"]
-
 
 def kitec(binary, *args):
     try:
@@ -56,6 +54,7 @@ def check_seed(args):
             "-O1": ["-O1"],
             "ssa": ["--passes=ssa"],
             "ssa,out-of-ssa": ["--passes=ssa,out-of-ssa"],
+            "ssa,unroll,out-of-ssa": ["--passes=remove-unreachable,ssa,constfold,copyprop,dce,simplifycfg,unroll,out-of-ssa"],
             "ssa,licm,out-of-ssa": ["--passes=remove-unreachable,ssa,licm,out-of-ssa"],
             "ssa,strength,out-of-ssa": ["--passes=remove-unreachable,ssa,strength,out-of-ssa"],
             "ssa,gvn,out-of-ssa": ["--passes=remove-unreachable,ssa,gvn,out-of-ssa"],

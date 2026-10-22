@@ -16,6 +16,36 @@ entry:
   %37 = add i32 %36, %6
   %33 = mul i32 %12, %k.2
   %39 = lt i32 %16, %n.1
+  %86 = add i32 %36, 1
+  %89 = add i32 16, %6
+  %96 = add i32 %36, 2
+  %99 = add i32 32, %6
+  %106 = add i32 %36, 3
+  %109 = add i32 48, %6
+  %116 = add i32 %36, 4
+  %119 = add i32 64, %6
+  %126 = add i32 %36, 5
+  %129 = add i32 80, %6
+  %136 = add i32 %36, 6
+  %139 = add i32 96, %6
+  %146 = add i32 %36, 7
+  %149 = add i32 112, %6
+  %156 = add i32 %36, 8
+  %159 = add i32 128, %6
+  %166 = add i32 %36, 9
+  %169 = add i32 144, %6
+  %176 = add i32 %36, 10
+  %179 = add i32 160, %6
+  %186 = add i32 %36, 11
+  %189 = add i32 176, %6
+  %196 = add i32 %36, 12
+  %199 = add i32 192, %6
+  %206 = add i32 %36, 13
+  %209 = add i32 208, %6
+  %216 = add i32 %36, 14
+  %219 = add i32 224, %6
+  %226 = add i32 %36, 15
+  %229 = add i32 240, %6
   %acc.65 = copy f32 0.0
   %t.66 = copy i32 0
   jmp for.cond.1
@@ -55,28 +85,73 @@ if.else.10:
   jmp if.end.11
 if.end.11:
   barrier
-  %acc.69 = copy f32 %acc.65
-  %i.70 = copy i32 0
-  jmp for.cond.13
-for.cond.13:
-  %48 = lt i32 %i.70, 16
-  br %48, for.body.14, for.end.16
-for.body.14:
-  %50 = add i32 %36, %i.70
-  %51 = load f32 shared @ta[%50]
-  %52 = shl i32 %i.70, 4
-  %53 = add i32 %52, %6
-  %54 = load f32 shared @tb[%53]
-  %55 = mul f32 %51, %54
-  %56 = add f32 %acc.69, %55
-  %57 = add i32 %i.70, 1
-  %acc.69 = copy f32 %56
-  %i.70 = copy i32 %57
-  jmp for.cond.13
-for.end.16:
+  %77 = load f32 shared @ta[%36]
+  %80 = load f32 shared @tb[%6]
+  %81 = mul f32 %77, %80
+  %82 = add f32 %acc.65, %81
+  %87 = load f32 shared @ta[%86]
+  %90 = load f32 shared @tb[%89]
+  %91 = mul f32 %87, %90
+  %92 = add f32 %82, %91
+  %97 = load f32 shared @ta[%96]
+  %100 = load f32 shared @tb[%99]
+  %101 = mul f32 %97, %100
+  %102 = add f32 %92, %101
+  %107 = load f32 shared @ta[%106]
+  %110 = load f32 shared @tb[%109]
+  %111 = mul f32 %107, %110
+  %112 = add f32 %102, %111
+  %117 = load f32 shared @ta[%116]
+  %120 = load f32 shared @tb[%119]
+  %121 = mul f32 %117, %120
+  %122 = add f32 %112, %121
+  %127 = load f32 shared @ta[%126]
+  %130 = load f32 shared @tb[%129]
+  %131 = mul f32 %127, %130
+  %132 = add f32 %122, %131
+  %137 = load f32 shared @ta[%136]
+  %140 = load f32 shared @tb[%139]
+  %141 = mul f32 %137, %140
+  %142 = add f32 %132, %141
+  %147 = load f32 shared @ta[%146]
+  %150 = load f32 shared @tb[%149]
+  %151 = mul f32 %147, %150
+  %152 = add f32 %142, %151
+  %157 = load f32 shared @ta[%156]
+  %160 = load f32 shared @tb[%159]
+  %161 = mul f32 %157, %160
+  %162 = add f32 %152, %161
+  %167 = load f32 shared @ta[%166]
+  %170 = load f32 shared @tb[%169]
+  %171 = mul f32 %167, %170
+  %172 = add f32 %162, %171
+  %177 = load f32 shared @ta[%176]
+  %180 = load f32 shared @tb[%179]
+  %181 = mul f32 %177, %180
+  %182 = add f32 %172, %181
+  %187 = load f32 shared @ta[%186]
+  %190 = load f32 shared @tb[%189]
+  %191 = mul f32 %187, %190
+  %192 = add f32 %182, %191
+  %197 = load f32 shared @ta[%196]
+  %200 = load f32 shared @tb[%199]
+  %201 = mul f32 %197, %200
+  %202 = add f32 %192, %201
+  %207 = load f32 shared @ta[%206]
+  %210 = load f32 shared @tb[%209]
+  %211 = mul f32 %207, %210
+  %212 = add f32 %202, %211
+  %217 = load f32 shared @ta[%216]
+  %220 = load f32 shared @tb[%219]
+  %221 = mul f32 %217, %220
+  %222 = add f32 %212, %221
+  %227 = load f32 shared @ta[%226]
+  %230 = load f32 shared @tb[%229]
+  %231 = mul f32 %227, %230
+  %232 = add f32 %222, %231
   barrier
   %58 = add i32 %t.66, 1
-  %acc.65 = copy f32 %acc.69
+  %acc.65 = copy f32 %232
   %t.66 = copy i32 %58
   jmp for.cond.1
 for.end.4:

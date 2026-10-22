@@ -29,6 +29,7 @@ const PassInfo kPasses[] = {
     {"constfold", S, -1, constfold},
     {"copyprop", S, -1, copyprop},
     {"gvn", S, -1, gvn},
+    {"unroll", S, -1, unroll},
     {"licm", S, -1, licm},
     {"strength", -1, -1, strength},
     {"dce", -1, -1, dce},
@@ -48,6 +49,7 @@ std::vector<std::string> passNames() {
 std::vector<Step> o1Pipeline() {
     return {{{"remove-unreachable", "ssa"}, 1},
             {{"constfold", "copyprop", "gvn", "dce", "simplifycfg"}, 4},
+            {{"unroll", "constfold", "copyprop", "gvn", "dce", "simplifycfg"}, 4},
             {{"licm", "gvn", "strength", "constfold", "dce", "simplifycfg", "out-of-ssa"}, 1}};
 }
 

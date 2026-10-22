@@ -6,30 +6,14 @@ if.then.1:
   store i32 global %out.1[0], 2
   jmp if.end.2
 if.end.2:
-  %i.21 = copy i32 0
-  jmp for.cond.3
-for.cond.3:
-  %6 = lt i32 %i.21, 2
-  br %6, for.body.4, for.end.6
-for.body.4:
-  store i32 global %out.1[%i.21], 0
-  %9 = add i32 %i.21, 1
-  %i.21 = copy i32 %9
-  jmp for.cond.3
-for.end.6:
-  %i.23 = copy i32 0
-  jmp for.cond.7
-for.cond.7:
-  %11 = lt i32 %i.23, 2
-  br %11, for.body.8, for.end.10
-for.body.8:
-  %12 = load i32 global %out.1[%i.23]
-  %13 = add i32 %12, 1
-  store i32 global %out.1[%i.23], %13
-  %14 = add i32 %i.23, 1
-  %i.23 = copy i32 %14
-  jmp for.cond.7
-for.end.10:
+  store i32 global %out.1[0], 0
+  store i32 global %out.1[1], 0
+  %36 = load i32 global %out.1[0]
+  %37 = add i32 %36, 1
+  store i32 global %out.1[0], %37
+  %40 = load i32 global %out.1[1]
+  %41 = add i32 %40, 1
+  store i32 global %out.1[1], %41
   store i32 global %out.1[1], 1
   ret
 }

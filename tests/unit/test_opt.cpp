@@ -423,3 +423,102 @@ kernel k(a: i32, p: *i32) {
     CHECK(has(toString(m.kernels[0]), "-3"));
     CHECK(has(toString(m.kernels[0]), "-14"));
 }
+
+namespace {
+
+// Compiles `src` (one kernel `k(n: i32, out: *i32)`), runs it with a single thread at -O0 and after
+// ssa + cleanup + two rounds of unroll + cleanup + out-of-ssa (verifying after every pass), and checks that `out` agrees.
+// Returns the optimized IR.
+std::string unrolled(const std::string& src, int32_t nValue = 3) {
+    const std::vector<std::string> names = {"remove-unreachable", "ssa", "constfold", "copyprop", "dce", "simplifycfg",
+                                            "unroll", "constfold", "copyprop", "gvn", "dce", "simplifycfg",  // round 1: inner loops
+                                            "unroll", "constfold", "copyprop", "gvn", "dce", "simplifycfg",  // round 2: the loop around them
+                                            "out-of-ssa"};
+    Module before = compile(src), after = compile(src);
+    Form form = Form::Lowered;
+    std::string err;
+    transform::PassManager pm({true, false, false});
+    REQUIRE_MESSAGE(pm.run(after, transform::flatPipeline(names), form, err), err);
+    auto results = [&](Module& m) {
+        std::vector<interp::Buffer> bufs = {intBuffer(std::vector<int32_t>(8, 0))};
+        interp::Result r = interp::run(m.kernels[0], interp::Launch{}, {static_cast<uint32_t>(nValue), 0}, bufs);
+        REQUIRE_MESSAGE(r.ok, r.error);
+        return bufs[0].data;
+    };
+    CHECK(results(before) == results(after));
+    return toString(after.kernels[0]);
+}
+
+}  // namespace
+
+TEST_CASE("unroll: a constant-trip loop becomes straight-line code with immediate induction values") {
+    std::string ir = unrolled(R"(
+kernel k(n: i32, out: *i32) {
+    var s: i32 = n;
+    for (var i: i32 = 0; i < 4; i += 1) { s += i * n; }
+    out[0] = s;
+}
+)");
+    CHECK_FALSE(has(ir, "br "));
+    CHECK_FALSE(has(ir, "phi"));
+    CHECK(has(ir, "mul i32 2, %n.0"));  // i * n with i == 2: the induction value is an immediate
+}
+
+TEST_CASE("unroll: a loop that runs zero times disappears and its live-out values are the initial ones") {
+    std::string ir = unrolled(R"(
+kernel k(n: i32, out: *i32) {
+    var s: i32 = n + 100;
+    var i: i32 = 5;
+    for (i = 5; i < 5; i += 1) { s += 1; }
+    out[0] = s;
+    out[1] = i;
+}
+)");
+    CHECK_FALSE(has(ir, "br "));
+    CHECK(has(ir, "store i32 global %out.1[1], 5"));
+}
+
+TEST_CASE("unroll: counting down, a stride, <=, != and the induction value after the loop") {
+    unrolled(R"(
+kernel k(n: i32, out: *i32) {
+    var a: i32 = 0;
+    for (var i: i32 = 9; i > 0; i -= 3) { a = a * 10 + i; }
+    var b: i32 = 0;
+    for (var j: i32 = 1; j <= 6; j += 2) { b = b * 10 + j; }
+    var c: i32 = 0;
+    var e: i32 = 0;
+    for (e = 0; e != 6; e += 2) { c += e + n; }
+    out[0] = a; out[1] = b; out[2] = c; out[3] = e;
+}
+)");
+}
+
+TEST_CASE("unroll: nested constant loops unroll innermost first") {
+    std::string ir = unrolled(R"(
+kernel k(n: i32, out: *i32) {
+    var s: i32 = 0;
+    for (var i: i32 = 0; i < 3; i += 1) {
+        for (var j: i32 = 0; j < 3; j += 1) { s += i * 3 + j + n; }
+    }
+    out[0] = s;
+}
+)");
+    CHECK_FALSE(has(ir, "br "));
+}
+
+TEST_CASE("unroll: loops it must not touch stay loops") {
+    // bound not a constant; a break (more than two blocks); too many iterations; too big when unrolled
+    std::string v = unrolled("kernel k(n: i32, out: *i32) { var s: i32 = 0; for (var i: i32 = 0; i < n; i += 1) { s += i; } out[0] = s; }");
+    CHECK(has(v, "br "));
+    std::string b = unrolled("kernel k(n: i32, out: *i32) { var s: i32 = 0; for (var i: i32 = 0; i < 4; i += 1) { if (i == n) { break; } s += i; } out[0] = s; }");
+    CHECK(has(b, "br "));
+    std::string many = unrolled("kernel k(n: i32, out: *i32) { var s: i32 = 0; for (var i: i32 = 0; i < 1000; i += 1) { s += i; } out[0] = s; }");
+    CHECK(has(many, "br "));
+    std::string forever = unrolled("kernel k(n: i32, out: *i32) { var s: i32 = 0; for (var i: i32 = 0; i != 5; i += 2) { s += 1; if (s > 3) { break; } } out[0] = s; }");
+    CHECK(has(forever, "br "));
+}
+
+TEST_CASE("unroll: a loop containing a barrier is unrolled and keeps one barrier per iteration") {
+    std::string ir = unrolled("kernel k(n: i32, out: *i32) { shared t: i32[4]; for (var i: i32 = 0; i < 3; i += 1) { t[i] = i + n; sync(); } out[0] = t[2]; }");
+    CHECK(count(ir, "barrier") == 3);
+}

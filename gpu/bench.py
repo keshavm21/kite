@@ -276,12 +276,12 @@ def run_bench(cp, b: Bench, kitec: Path, arch: str, quick: bool, work: Path):
                                    ("Kite -O1", "-O1", (), "")):
         ptx = kitec_ptx(kitec, ROOT / "examples" / f"{b.kite}.kite", opt, arch, work, extra, tag)
         kernel = cp.RawModule(path=str(ptx)).get_function(b.name)
-        variants.append((label, kernel, cubin_from_ptx(ptx, arch)))
+        variants.append((label, kernel, cubin_from_ptx(ptx, arch), hash(ptx.read_text())))
     nvrtc = cp.RawKernel(b.cuda, b.name, options=("--fmad=false",))
-    variants.append(("CUDA C (NVRTC)", nvrtc, cubin_from_cuda(b.cuda, b.name, arch, work)))
+    variants.append(("CUDA C (NVRTC)", nvrtc, cubin_from_cuda(b.cuda, b.name, arch, work), None))
 
     rows = []
-    for label, kernel, cubin in variants:
+    for label, kernel, cubin, code in variants:
         out = b.init_out(cp)
         kernel(grid, block, b.args(cp, out))
         cp.cuda.Device().synchronize()
@@ -290,9 +290,9 @@ def run_bench(cp, b: Bench, kitec: Path, arch: str, quick: bool, work: Path):
         args = b.args(cp, scratch)
         ms = median_ms(cp, lambda: kernel(grid, block, args))
         regs = kernel.attributes["num_regs"]
-        rows.append((label, ms, regs, sass_count(cubin) if cubin else None, ok))
+        rows.append((label, ms, regs, sass_count(cubin) if cubin else None, ok, code))
     lib_ms = median_ms(cp, lib_fn)
-    rows.append((lib_desc, lib_ms, None, None, True))
+    rows.append((lib_desc, lib_ms, None, None, True, None))
     return rows
 
 
@@ -301,11 +301,13 @@ def render(b: Bench, rows) -> str:
     scale = 1e6  # work / (ms * 1e6) = work per second / 1e9
     peak = T4_PEAK_GBS if b.kind == "mem" else T4_PEAK_GFLOPS
     lines = [f"### {b.name} ({b.size})", "", f"| variant | time (ms) | {unit} | % of T4 peak | regs | SASS insts | matches library |", "|---|---:|---:|---:|---:|---:|:-:|"]
-    for label, ms, regs, sass, ok in rows:
+    for label, ms, regs, sass, ok, _ in rows:
         rate = b.work / (ms * scale)
         lines.append(f"| {label} | {ms:.4f} | {rate:.1f} | {100 * rate / peak:.0f}% | {fmt(regs)} | {fmt(sass)} | {'yes' if ok else '**NO**'} |")
     def compare(base, new, what):
         change = (base[1] - new[1]) / base[1]
+        if base[5] is not None and base[5] == new[5]:  # same PTX: whatever differs is noise
+            return f"{what}: **identical PTX**, so the measured {100 * abs(change):.0f}% difference ({base[1]:.4f} vs {new[1]:.4f} ms) is run-to-run noise."
         verdict = "no measurable change" if abs(change) < NOISE else (f"{100 * change:.0f}% faster" if change > 0 else f"{-100 * change:.0f}% slower")
         sass = f"; SASS {base[3]} -> {new[3]} instructions" if base[3] is not None and new[3] is not None else ""
         return f"{what}: **{verdict}** ({base[1]:.4f} -> {new[1]:.4f} ms), registers {base[2]} -> {new[2]}{sass}."
